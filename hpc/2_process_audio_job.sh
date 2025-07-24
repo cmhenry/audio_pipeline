@@ -9,19 +9,13 @@
 #SBATCH --time=12:00:00
 #SBATCH --output=/scratch/user/logs/process_%j.out
 
-# process_audio_job.sh
+# process_audio_job.sh - Updated for Singularity containers
 DATE_STR=$1
 
-# Load required modules
-# module load cuda/12.0
-# module load python/3.10
-# module load ffmpeg
-module load gpu cudnn/8.9.7
-module load mamba
-
-# Activate virtual environment
-# source /home/user/audio_env/bin/activate
-mamba activate torch
+# Container paths
+CONTAINER_DIR="/shares/bdm.ipz.uzh/audio_pipeline/containers"
+AUDIO_PROCESSING_SIF="${CONTAINER_DIR}/audio_processing.sif"
+SCRIPT_DIR="/shares/bdm.ipz.uzh/audio_pipeline/src"
 
 # Database connection
 DB_HOST="172.23.76.3"
@@ -37,24 +31,25 @@ TEMP_DIR="/scratch/cohenr/audio_storage/${SLURM_JOB_ID}"  # Node-local fast stor
 # Create temp directory on local node
 mkdir -p "$TEMP_DIR"
 
-# Update database
-# psql "$DB_CREDS" -c "
-#     UPDATE processing_queue 
-#     SET status = 'processing',
-#         processing_start = NOW(),
-#         slurm_job_id = ${SLURM_JOB_ID}
-#     WHERE year = ${YEAR} AND month = ${MONTH}::int AND date = ${DAY}::int;
-# "
-python ${SCRIPT_DIR}/db_utils.py --db-string "$DB_CREDS" update-processing "$DATE_STR" processing --job-id ${SLURM_JOB_ID}
+# Update database status
+singularity run --nv \
+    --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
+    ${AUDIO_PROCESSING_SIF} \
+    /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" update-processing "$DATE_STR" processing --job-id ${SLURM_JOB_ID}
 
-# Run the main processing
-python /home/user/audio_pipeline/hpc_process_day.py \
+# Run the main processing with GPU support
+singularity run --nv \
+    --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
+    --bind ${STAGING_DIR}:/staging \
+    --bind ${TEMP_DIR}:/temp \
+    --bind /scratch:/scratch \
+    ${AUDIO_PROCESSING_SIF} \
+    /opt/audio_pipeline/src/hpc_process_day.py \
     --date "$DATE_STR" \
-    --staging-dir "$STAGING_DIR" \
-    --temp-dir "$TEMP_DIR" \
+    --staging-dir "/staging" \
+    --temp-dir "/temp" \
     --db-host "$DB_HOST" \
     --db-password "$DB_PASSWORD" \
-    --cloud-config "$CLOUD_STORAGE_CONFIG" \
     --batch-size 100 \
     --num-workers 32
 
@@ -64,9 +59,15 @@ if [ $? -eq 0 ]; then
     rm -rf "$STAGING_DIR"
     
     # Update database
-    python ${SCRIPT_DIR}/db_utils.py --db-string "$DB_CREDS" update-processing "$DATE_STR" completed
+    singularity run --nv \
+        --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
+        ${AUDIO_PROCESSING_SIF} \
+        /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" update-processing "$DATE_STR" completed
 else
-    python ${SCRIPT_DIR}/db_utils.py --db-string "$DB_CREDS" update-processing "$DATE_STR" processing_failed --error "Processing job failed with exit code $?"
+    singularity run --nv \
+        --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
+        ${AUDIO_PROCESSING_SIF} \
+        /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" update-processing "$DATE_STR" processing_failed --error "Processing job failed with exit code $?"
 fi
 
 # Clean up temp directory

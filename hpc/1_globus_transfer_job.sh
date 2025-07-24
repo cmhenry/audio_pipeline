@@ -8,20 +8,20 @@
 #SBATCH --time=06:00:00
 #SBATCH --output=/scratch/user/logs/transfer_%j.out
 
-# globus_transfer_job.sh - Updated for timestamped file structure
+# globus_transfer_job.sh - Updated for Singularity containers
 DATE_STR=$1  # Format: YYYY-MM-DD
 YEAR=$(echo $DATE_STR | cut -d'-' -f1)
 MONTH=$(echo $DATE_STR | cut -d'-' -f2)
 DAY=$(echo $DATE_STR | cut -d'-' -f3)
 
 # Database connection
-# DB_HOST="172.23.76.3"
 DB_CREDS="host=172.23.76.3 port=5432 dbname=audio_pipeline user=audio_user password=audio_password"
 export DB_CREDS
 
-# Load Globus module
-module load mamba
-mamba activate globus
+# Container paths
+CONTAINER_DIR="/shares/bdm.ipz.uzh/audio_pipeline/containers"
+PIPELINE_UTILS_SIF="${CONTAINER_DIR}/pipeline_utils.sif"
+SCRIPT_DIR="/shares/bdm.ipz.uzh/audio_pipeline/src"
 
 # Convert month number to name (e.g., 01 -> january)
 MONTH_NAME=$(date -d "${YEAR}-${MONTH}-01" +%B | tr '[:upper:]' '[:lower:]')
@@ -45,13 +45,10 @@ DEST_PATH="/shares/bdm.ipz.uzh/audio_pipeline/staging/${DATE_STR}/"
 mkdir -p "$(dirname $DEST_PATH)"
 
 # Update database status
-# psql "$DB_CREDS" -c "
-#     UPDATE processing_queue 
-#     SET status = 'transferring', 
-#         transfer_start = NOW() 
-#     WHERE year = ${YEAR} AND month = ${MONTH}::int AND date = ${DAY}::int;
-# "
-python ${SCRIPT_DIR}/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" transferring
+singularity run \
+    --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
+    ${PIPELINE_UTILS_SIF} \
+    /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" transferring
 
 # Create a file list for all files from this specific date
 FILELIST="/tmp/globus_files_${DATE_STR}.txt"
@@ -75,7 +72,8 @@ EXPECTED_FILES=576
 # Initiate batch transfer using file list
 echo "Transferring ${EXPECTED_FILES} files for ${DATE_STR} from ${FOLDER_NAME}"
 
-TASK_ID=$(globus transfer \
+TASK_ID=$(singularity exec ${PIPELINE_UTILS_SIF} \
+    globus transfer \
     "${SOURCE_ENDPOINT}" \
     "${DEST_ENDPOINT}" \
     --batch < "$FILELIST" \
@@ -84,12 +82,10 @@ TASK_ID=$(globus transfer \
     --format json | jq -r '.task_id')
 
 # Store task ID in database
-# psql "$DB_CREDS" -c "
-#     UPDATE processing_queue 
-#     SET transfer_task_id = '${TASK_ID}'
-#     WHERE year = ${YEAR} AND month = ${MONTH}::int AND date = ${DAY}::int;
-# "
-python ${SCRIPT_DIR}/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" transferring --task-id "$TASK_ID"
+singularity run \
+    --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
+    ${PIPELINE_UTILS_SIF} \
+    /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" transferring --task-id "$TASK_ID"
 
 # Monitor transfer
 CHECK_INTERVAL=300  # 5 minutes
@@ -99,7 +95,7 @@ for i in $(seq 1 $MAX_CHECKS); do
     sleep $CHECK_INTERVAL
     
     # Get transfer status
-    TASK_INFO=$(globus task show $TASK_ID --format json)
+    TASK_INFO=$(singularity exec ${PIPELINE_UTILS_SIF} globus task show $TASK_ID --format json)
     STATUS=$(echo "$TASK_INFO" | jq -r '.status')
     FILES_TRANSFERRED=$(echo "$TASK_INFO" | jq -r '.files_transferred // 0')
     
@@ -122,7 +118,10 @@ for i in $(seq 1 $MAX_CHECKS); do
             #         END
             #     WHERE year = ${YEAR} AND month = ${MONTH}::int AND date = ${DAY}::int;
             # "
-            python ${SCRIPT_DIR}/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" ready_to_process
+            singularity run \
+                --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
+                ${PIPELINE_UTILS_SIF} \
+                /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" ready_to_process
             
             # Submit processing job
             sbatch "${SCRIPT_DIR}/process_audio_job.sh" "$DATE_STR"
@@ -135,7 +134,10 @@ for i in $(seq 1 $MAX_CHECKS); do
             #         error_message = 'Insufficient files transferred: ' || ${FILES_TRANSFERRED} || '/' || ${EXPECTED_FILES}
             #     WHERE year = ${YEAR} AND month = ${MONTH}::int AND date = ${DAY}::int;
             # "
-            python ${SCRIPT_DIR}/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" transfer_failed --error "Transfer failed: $ERROR_MSG"
+            singularity run \
+                --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
+                ${PIPELINE_UTILS_SIF} \
+                /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" transfer_failed --error "Transfer failed: $ERROR_MSG"
             exit 1
         fi
         
@@ -148,7 +150,10 @@ for i in $(seq 1 $MAX_CHECKS); do
         #         error_message = '${ERROR_MSG}'
         #     WHERE year = ${YEAR} AND month = ${MONTH}::int AND date = ${DAY}::int;
         # "
-        python ${SCRIPT_DIR}/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" transfer_failed --error "Transfer failed: $ERROR_MSG"
+        singularity run \
+            --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
+            ${PIPELINE_UTILS_SIF} \
+            /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" transfer_failed --error "Transfer failed: $ERROR_MSG"
         exit 1
     fi
 done
@@ -161,5 +166,8 @@ echo "Transfer timed out after ${MAX_CHECKS} checks"
 #         error_message = 'Transfer timeout'
 #     WHERE year = ${YEAR} AND month = ${MONTH}::int AND date = ${DAY}::int;
 # 
-python ${SCRIPT_DIR}/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" transfer_failed --error "Transfer failed: $ERROR_MSG"
+singularity run \
+    --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
+    ${PIPELINE_UTILS_SIF} \
+    /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" transfer_failed --error "Transfer timeout"
 exit 1

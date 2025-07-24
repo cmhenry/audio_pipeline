@@ -1,14 +1,14 @@
 #!/bin/bash
 # scheduler.sh - Runs on HPC login node via cron
 # Schedules daily Globus transfers and monitors completion
+# Updated for Singularity containers
 
-module load mamba
-mamba activate globus
+# Container paths
+CONTAINER_DIR="/shares/bdm.ipz.uzh/audio_pipeline/containers"
+PIPELINE_UTILS_SIF="${CONTAINER_DIR}/pipeline_utils.sif"
 
-SCRIPT_DIR="/home/cohenr/data/audio_pipeline/src"
+SCRIPT_DIR="/shares/bdm.ipz.uzh/audio_pipeline/src"
 WORK_DIR="/shares/bdm.ipz.uzh/audio_pipeline"
-# DB_HOST="172.23.76.3"
-# DB_CREDS="postgresql://audio_user:audio_password@${DB_HOST}:5432/audio_pipeline"
 DB_CREDS="host=172.23.76.3 port=5432 dbname=audio_pipeline user=audio_user password=audio_password"
 export DB_CREDS
 
@@ -23,8 +23,11 @@ export DB_CREDS
 #     LIMIT 5;
 # ")
 
-# Get pending dates using Python
-DAYS_TO_PROCESS=$(python ${SCRIPT_DIR}/db_utils.py --db-string "$DB_CREDS" get-pending --limit 5)
+# Get pending dates using containerized Python
+DAYS_TO_PROCESS=$(singularity run \
+    --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
+    ${PIPELINE_UTILS_SIF} \
+    /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" get-pending --limit 5)
 
 # for DAY in $DAYS_TO_PROCESS; do
 #     # Check if transfer job already exists

@@ -22,6 +22,19 @@ The system consists of three main layers:
 
 ## Key Commands
 
+### Container Setup
+```bash
+# Build Singularity containers (requires sudo)
+cd containers && ./build_containers.sh
+
+# Test containers
+singularity run --nv audio_processing.sif --help
+singularity run pipeline_utils.sif --help
+
+# Test GPU access (on GPU node)
+singularity exec --nv audio_processing.sif python -c "import torch; print(torch.cuda.is_available())"
+```
+
 ### Database Management
 ```bash
 # Setup PostgreSQL (run on cloud VM)
@@ -30,11 +43,12 @@ The system consists of three main layers:
 # Create/update schema
 ./db/manage_schema.sh
 
-# Test database connectivity
-python hpc/src/db_utils.py --db-string "host=VM_IP port=5432 dbname=audio_pipeline user=audio_user password=audio_password" test-connection
+# Test database connectivity (containerized)
+singularity run --bind ./hpc/src:/opt/audio_pipeline/src containers/pipeline_utils.sif \
+    /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" test-connection
 ```
 
-### HPC Operations
+### HPC Operations (Containerized)
 ```bash
 # Start master scheduler (typically via cron)
 ./hpc/0_master_scheduler.sh
@@ -45,17 +59,21 @@ sbatch --export=DATE=2024-01-15 ./hpc/1_globus_transfer_job.sh
 # Manual audio processing for specific date
 sbatch --export=DATE=2024-01-15,DB_PASSWORD=your_password ./hpc/2_process_audio_job.sh
 
-# Process single day (direct Python execution)
-cd hpc/src && python hpc_process_day.py --date 2024-01-15 --db-host VM_IP --db-password PASSWORD --staging-dir /path/to/staging --temp-dir /tmp/audio
+# Process single day (direct containerized execution)
+singularity run --nv --bind ./hpc/src:/opt/audio_pipeline/src --bind /staging:/staging --bind /tmp:/temp \
+    containers/audio_processing.sif /opt/audio_pipeline/src/hpc_process_day.py \
+    --date 2024-01-15 --db-host VM_IP --db-password PASSWORD --staging-dir /staging --temp-dir /temp
 ```
 
 ### Monitoring
 ```bash
-# Start monitoring API
-python vm/monitor_pipeline.py
+# Start monitoring API (containerized)
+singularity run --bind ./vm:/opt/audio_pipeline/vm --bind ./hpc/src:/opt/audio_pipeline/src \
+    containers/pipeline_utils.sif /opt/audio_pipeline/vm/monitor_pipeline.py
 
 # Check processing queue status
-python hpc/src/db_utils.py --db-string "$DB_CREDS" get-pending --limit 10
+singularity run --bind ./hpc/src:/opt/audio_pipeline/src containers/pipeline_utils.sif \
+    /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" get-pending --limit 10
 ```
 
 ## Database Schema
@@ -73,12 +91,18 @@ host=VM_IP port=5432 dbname=audio_pipeline user=audio_user password=audio_passwo
 
 ## Technology Stack
 
-### Core Dependencies
-- **Python 3.x** with psycopg2, pandas, pyarrow
+### Containerized Environment
+The pipeline runs entirely in Singularity containers for consistent environments:
+
+- **audio_processing.sif**: GPU-enabled container with WhisperX, PyTorch (CUDA 12.1), FFmpeg
+- **pipeline_utils.sif**: Database tools, Globus CLI, monitoring utilities
+
+### Core Dependencies (Containerized)
+- **Python 3.10** with psycopg2, pandas, pyarrow
 - **WhisperX** for GPU-accelerated transcription
-- **PyTorch** with CUDA support for H100 GPUs
+- **PyTorch with CUDA 12.1** support for H100 GPUs
 - **FFmpeg** for audio format conversion
-- **Globus** for high-performance data transfer
+- **Globus CLI** for high-performance data transfer
 - **SLURM** for HPC job scheduling
 
 ### Processing Specifications
@@ -86,12 +110,16 @@ host=VM_IP port=5432 dbname=audio_pipeline user=audio_user password=audio_passwo
 - Transcription: WhisperX large-v3 model with batch processing
 - Batch sizes: 100+ audio files per processing job
 - GPU optimization: Aggressive memory management and cache clearing
+- Container isolation: Consistent runtime environment across all nodes
 
 ## File Organization
 
-- `hpc/0_master_scheduler.sh`: Main orchestration (cron-scheduled)
-- `hpc/1_globus_transfer_job.sh`: Automated data transfer
-- `hpc/2_process_audio_job.sh`: Audio processing job submission
+- `containers/audio_processing.def`: GPU container definition (WhisperX, PyTorch)
+- `containers/pipeline_utils.def`: Utilities container definition (DB, Globus)
+- `containers/build_containers.sh`: Container build script
+- `hpc/0_master_scheduler.sh`: Main orchestration (cron-scheduled, containerized)
+- `hpc/1_globus_transfer_job.sh`: Automated data transfer (containerized)
+- `hpc/2_process_audio_job.sh`: Audio processing job submission (containerized)
 - `hpc/src/hpc_process_day.py`: Core processing logic
 - `hpc/src/db_utils.py`: Database utilities replacing raw SQL
 - `db/setup_postgres.sh`: Automated PostgreSQL deployment
@@ -105,13 +133,20 @@ host=VM_IP port=5432 dbname=audio_pipeline user=audio_user password=audio_passwo
 DB_HOST=your-cloud-vm-ip
 DB_PASSWORD=your_secure_password
 GLOBUS_ENDPOINT_ID=your_endpoint_id
+DB_CREDS="host=VM_IP port=5432 dbname=audio_pipeline user=audio_user password=PASSWORD"
 ```
 
-### HPC Module Requirements
+### Container Paths
 ```bash
-module load mamba
-mamba activate globus  # For Globus operations
-mamba activate whisperx  # For audio processing (with PyTorch+CUDA)
+CONTAINER_DIR="/shares/bdm.ipz.uzh/audio_pipeline/containers"
+AUDIO_PROCESSING_SIF="${CONTAINER_DIR}/audio_processing.sif" 
+PIPELINE_UTILS_SIF="${CONTAINER_DIR}/pipeline_utils.sif"
+```
+
+### HPC Module Requirements (Minimal)
+```bash
+module load singularity  # For container runtime
+# No longer need: mamba, cuda, python modules - all containerized
 ```
 
 ## Processing Patterns
@@ -127,6 +162,7 @@ Files are organized in 10-minute intervals:
 - GPU processing includes memory cleanup and error recovery
 - Failed jobs remain in processing queue for retry
 - Comprehensive logging at INFO level throughout pipeline
+- Container isolation prevents dependency conflicts
 
 ## Performance Considerations
 
@@ -135,3 +171,23 @@ Files are organized in 10-minute intervals:
 - Strategic database indexing including GIN indexes for full-text search
 - Compressed data transfer (tar.xz format)
 - Aggressive cleanup of temporary files and GPU cache
+- Container overhead minimal compared to processing time
+
+## Container Usage Patterns
+
+### GPU Container Usage
+Always use `--nv` flag for GPU access:
+```bash
+singularity run --nv audio_processing.sif script.py
+```
+
+### Bind Mounts
+Essential directories to bind mount:
+- Source code: `--bind ./hpc/src:/opt/audio_pipeline/src`
+- Data directories: `--bind /staging:/staging --bind /temp:/temp`
+- Scratch space: `--bind /scratch:/scratch`
+
+### Container Security
+- Containers run as regular user (not root)
+- No network access during processing
+- Isolated filesystem prevents contamination
