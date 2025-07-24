@@ -1,0 +1,372 @@
+=== Audio Pipeline Database Schema ===
+Generated: Tue Jul 15 23:19:29 UTC 2025
+Database: audio_pipeline
+
+====================================
+TABLES
+====================================
+
+                                       List of relations
+ Schema |    Name     | Type  |   Owner    | Persistence | Access method | Size  | Description 
+--------+-------------+-------+------------+-------------+---------------+-------+-------------
+ public | audio_files | table | audio_user | permanent   | heap          | 16 kB | 
+(1 row)
+
+
+                                         List of relations
+ Schema |    Name     | Type  |   Owner    | Persistence | Access method |    Size    | Description 
+--------+-------------+-------+------------+-------------+---------------+------------+-------------
+ public | transcripts | table | audio_user | permanent   | heap          | 8192 bytes | 
+(1 row)
+
+
+                                           List of relations
+ Schema |      Name      | Type  |   Owner    | Persistence | Access method |    Size    | Description 
+--------+----------------+-------+------------+-------------+---------------+------------+-------------
+ public | audio_metadata | table | audio_user | permanent   | heap          | 8192 bytes | 
+(1 row)
+
+
+====================================
+TABLE DETAILS
+====================================
+
+--- Table: audio_files ---
+                                                                 Table "public.audio_files"
+           Column           |            Type             | Collation | Nullable |      Default       | Storage  | Compression | Stats target | Description 
+----------------------------+-----------------------------+-----------+----------+--------------------+----------+-------------+--------------+-------------
+ id                         | uuid                        |           | not null | uuid_generate_v4() | plain    |             |              | 
+ filename                   | character varying(255)      |           | not null |                    | extended |             |              | 
+ file_path                  | character varying(500)      |           |          |                    | extended |             |              | 
+ file_size_bytes            | bigint                      |           |          |                    | plain    |             |              | 
+ month                      | integer                     |           | not null |                    | plain    |             |              | 
+ date                       | integer                     |           | not null |                    | plain    |             |              | 
+ year                       | integer                     |           | not null |                    | plain    |             |              | 
+ classification             | character varying(100)      |           |          |                    | extended |             |              | 
+ classification_probability | numeric(3,2)                |           |          |                    | main     |             |              | 
+ created_at                 | timestamp without time zone |           |          | CURRENT_TIMESTAMP  | plain    |             |              | 
+ updated_at                 | timestamp without time zone |           |          | CURRENT_TIMESTAMP  | plain    |             |              | 
+Indexes:
+    "audio_files_pkey" PRIMARY KEY, btree (id)
+    "audio_files_filename_key" UNIQUE CONSTRAINT, btree (filename)
+    "idx_audio_files_classification" btree (classification)
+    "idx_audio_files_date" btree (year, month, date)
+    "idx_audio_files_filename" btree (filename)
+Check constraints:
+    "audio_files_classification_probability_check" CHECK (classification_probability >= 0::numeric AND classification_probability <= 1::numeric)
+    "audio_files_date_check" CHECK (date >= 1 AND date <= 31)
+    "audio_files_month_check" CHECK (month >= 1 AND month <= 12)
+    "audio_files_year_check" CHECK (year >= 2000)
+Referenced by:
+    TABLE "audio_metadata" CONSTRAINT "audio_metadata_audio_file_id_fkey" FOREIGN KEY (audio_file_id) REFERENCES audio_files(id) ON DELETE CASCADE
+    TABLE "transcripts" CONSTRAINT "transcripts_audio_file_id_fkey" FOREIGN KEY (audio_file_id) REFERENCES audio_files(id) ON DELETE CASCADE
+Triggers:
+    update_audio_files_updated_at BEFORE UPDATE ON audio_files FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+Access method: heap
+
+
+--- Table: transcripts ---
+                                                            Table "public.transcripts"
+      Column      |            Type             | Collation | Nullable |      Default       | Storage  | Compression | Stats target | Description 
+------------------+-----------------------------+-----------+----------+--------------------+----------+-------------+--------------+-------------
+ id               | uuid                        |           | not null | uuid_generate_v4() | plain    |             |              | 
+ audio_file_id    | uuid                        |           | not null |                    | plain    |             |              | 
+ transcript_text  | text                        |           | not null |                    | extended |             |              | 
+ word_count       | integer                     |           |          |                    | plain    |             |              | 
+ duration_seconds | numeric(10,2)               |           |          |                    | main     |             |              | 
+ created_at       | timestamp without time zone |           |          | CURRENT_TIMESTAMP  | plain    |             |              | 
+Indexes:
+    "transcripts_pkey" PRIMARY KEY, btree (id)
+    "idx_transcripts_audio_file" btree (audio_file_id)
+    "idx_transcripts_text_search" gin (to_tsvector('english'::regconfig, transcript_text))
+    "transcripts_audio_file_id_key" UNIQUE CONSTRAINT, btree (audio_file_id)
+Foreign-key constraints:
+    "transcripts_audio_file_id_fkey" FOREIGN KEY (audio_file_id) REFERENCES audio_files(id) ON DELETE CASCADE
+Access method: heap
+
+
+--- Table: audio_metadata ---
+                                                               Table "public.audio_metadata"
+           Column           |            Type             | Collation | Nullable |      Default       | Storage  | Compression | Stats target | Description 
+----------------------------+-----------------------------+-----------+----------+--------------------+----------+-------------+--------------+-------------
+ id                         | uuid                        |           | not null | uuid_generate_v4() | plain    |             |              | 
+ audio_file_id              | uuid                        |           | not null |                    | plain    |             |              | 
+ meta_id                    | character varying(255)      |           |          |                    | extended |             |              | 
+ poi_id                     | character varying(255)      |           |          |                    | extended |             |              | 
+ meta_createtime            | timestamp without time zone |           |          |                    | plain    |             |              | 
+ meta_scheduletime          | timestamp without time zone |           |          |                    | plain    |             |              | 
+ timestamp                  | bigint                      |           |          |                    | plain    |             |              | 
+ collection_timestamp       | timestamp without time zone |           |          |                    | plain    |             |              | 
+ meta_itemcommentstatus     | integer                     |           |          |                    | plain    |             |              | 
+ meta_diversificationid     | character varying(255)      |           |          |                    | extended |             |              | 
+ meta_secret                | boolean                     |           |          | false              | plain    |             |              | 
+ meta_privateitem           | boolean                     |           |          | false              | plain    |             |              | 
+ meta_duetenabled           | boolean                     |           |          | true               | plain    |             |              | 
+ meta_stitchenabled         | boolean                     |           |          | true               | plain    |             |              | 
+ meta_indexenabled          | boolean                     |           |          | true               | plain    |             |              | 
+ meta_iscontentclassified   | boolean                     |           |          | false              | plain    |             |              | 
+ meta_isaigc                | boolean                     |           |          | false              | plain    |             |              | 
+ meta_isad                  | boolean                     |           |          | false              | plain    |             |              | 
+ meta_isecvideo             | boolean                     |           |          | false              | plain    |             |              | 
+ author_id                  | character varying(255)      |           |          |                    | extended |             |              | 
+ author_uniqueid            | character varying(255)      |           |          |                    | extended |             |              | 
+ author_nickname            | text                        |           |          |                    | extended |             |              | 
+ author_signature           | text                        |           |          |                    | extended |             |              | 
+ author_roomid              | character varying(255)      |           |          |                    | extended |             |              | 
+ author_verified            | boolean                     |           |          | false              | plain    |             |              | 
+ author_openfavorite        | boolean                     |           |          | true               | plain    |             |              | 
+ author_commentsetting      | integer                     |           |          |                    | plain    |             |              | 
+ author_duetsetting         | integer                     |           |          |                    | plain    |             |              | 
+ author_stitchsetting       | integer                     |           |          |                    | plain    |             |              | 
+ author_downloadsetting     | integer                     |           |          |                    | plain    |             |              | 
+ music_id                   | character varying(255)      |           |          |                    | extended |             |              | 
+ music_title                | text                        |           |          |                    | extended |             |              | 
+ music_authorname           | character varying(255)      |           |          |                    | extended |             |              | 
+ music_album                | text                        |           |          |                    | extended |             |              | 
+ music_duration             | integer                     |           |          |                    | plain    |             |              | 
+ music_schedulesearchtime   | timestamp without time zone |           |          |                    | plain    |             |              | 
+ music_collected            | boolean                     |           |          | false              | plain    |             |              | 
+ stats_diggcount            | bigint                      |           |          | 0                  | plain    |             |              | 
+ stats_sharecount           | bigint                      |           |          | 0                  | plain    |             |              | 
+ stats_commentcount         | bigint                      |           |          | 0                  | plain    |             |              | 
+ stats_playcount            | bigint                      |           |          | 0                  | plain    |             |              | 
+ stats_collectcount         | bigint                      |           |          | 0                  | plain    |             |              | 
+ video_height               | integer                     |           |          |                    | plain    |             |              | 
+ video_width                | integer                     |           |          |                    | plain    |             |              | 
+ video_duration             | integer                     |           |          |                    | plain    |             |              | 
+ video_bitrate              | integer                     |           |          |                    | plain    |             |              | 
+ video_ratio                | character varying(50)       |           |          |                    | extended |             |              | 
+ video_encodedtype          | character varying(50)       |           |          |                    | extended |             |              | 
+ video_format               | character varying(50)       |           |          |                    | extended |             |              | 
+ video_videoquality         | character varying(50)       |           |          |                    | extended |             |              | 
+ video_codectype            | character varying(50)       |           |          |                    | extended |             |              | 
+ video_definition           | character varying(50)       |           |          |                    | extended |             |              | 
+ poi_type                   | character varying(100)      |           |          |                    | extended |             |              | 
+ poi_name                   | text                        |           |          |                    | extended |             |              | 
+ poi_address                | text                        |           |          |                    | extended |             |              | 
+ poi_city                   | character varying(255)      |           |          |                    | extended |             |              | 
+ poi_citycode               | character varying(50)       |           |          |                    | extended |             |              | 
+ poi_province               | character varying(255)      |           |          |                    | extended |             |              | 
+ poi_country                | character varying(255)      |           |          |                    | extended |             |              | 
+ poi_countrycode            | character varying(10)       |           |          |                    | extended |             |              | 
+ poi_fatherpoiid            | character varying(255)      |           |          |                    | extended |             |              | 
+ poi_fatherpoiname          | text                        |           |          |                    | extended |             |              | 
+ poi_category               | character varying(255)      |           |          |                    | extended |             |              | 
+ poi_tttypecode             | character varying(50)       |           |          |                    | extended |             |              | 
+ poi_typecode               | character varying(50)       |           |          |                    | extended |             |              | 
+ poi_tttypenametiny         | character varying(255)      |           |          |                    | extended |             |              | 
+ poi_tttypenamemedium       | character varying(255)      |           |          |                    | extended |             |              | 
+ poi_tttypenamesuper        | character varying(255)      |           |          |                    | extended |             |              | 
+ adress_addresscountry      | character varying(255)      |           |          |                    | extended |             |              | 
+ adress_addresslocality     | character varying(255)      |           |          |                    | extended |             |              | 
+ adress_addressregion       | character varying(255)      |           |          |                    | extended |             |              | 
+ adress_streetaddress       | text                        |           |          |                    | extended |             |              | 
+ statuscode                 | integer                     |           |          |                    | plain    |             |              | 
+ statusmsg                  | text                        |           |          |                    | extended |             |              | 
+ meta_desc                  | text                        |           |          |                    | extended |             |              | 
+ meta_locationcreated       | text                        |           |          |                    | extended |             |              | 
+ processed_desc             | text                        |           |          |                    | extended |             |              | 
+ description_hash           | character varying(255)      |           |          |                    | extended |             |              | 
+ meta_aigclabeltype         | character varying(100)      |           |          |                    | extended |             |              | 
+ meta_aigcdescription       | text                        |           |          |                    | extended |             |              | 
+ meta_diversificationlabels | jsonb                       |           |          |                    | extended |             |              | 
+ meta_serverabversions      | jsonb                       |           |          |                    | extended |             |              | 
+ meta_suggestedwords        | jsonb                       |           |          |                    | extended |             |              | 
+ meta_adlabelversion        | jsonb                       |           |          |                    | extended |             |              | 
+ meta_bainfo                | jsonb                       |           |          |                    | extended |             |              | 
+ subtitle_subtitle_lang     | jsonb                       |           |          |                    | extended |             |              | 
+ bitrate_bitrate_info       | jsonb                       |           |          |                    | extended |             |              | 
+ text_extra_user_mention    | jsonb                       |           |          |                    | extended |             |              | 
+ text_extra_hashtag_mention | jsonb                       |           |          |                    | extended |             |              | 
+ warning_warning            | jsonb                       |           |          |                    | extended |             |              | 
+ duetinfo_duetfromid        | character varying(255)      |           |          |                    | extended |             |              | 
+ pol                        | character varying(50)       |           |          |                    | extended |             |              | 
+ hour                       | integer                     |           |          |                    | plain    |             |              | 
+ country                    | character varying(255)      |           |          |                    | extended |             |              | 
+ created_at                 | timestamp without time zone |           |          | CURRENT_TIMESTAMP  | plain    |             |              | 
+ updated_at                 | timestamp without time zone |           |          | CURRENT_TIMESTAMP  | plain    |             |              | 
+Indexes:
+    "audio_metadata_pkey" PRIMARY KEY, btree (id)
+    "audio_metadata_audio_file_id_key" UNIQUE CONSTRAINT, btree (audio_file_id)
+    "idx_metadata_author_id" btree (author_id)
+    "idx_metadata_author_uniqueid" btree (author_uniqueid)
+    "idx_metadata_country" btree (country)
+    "idx_metadata_createtime" btree (meta_createtime)
+    "idx_metadata_hashtags" gin (text_extra_hashtag_mention)
+    "idx_metadata_mentions" gin (text_extra_user_mention)
+    "idx_metadata_meta_id" btree (meta_id)
+    "idx_metadata_music_id" btree (music_id)
+    "idx_metadata_poi_id" btree (poi_id)
+    "idx_metadata_stats" btree (stats_playcount, stats_diggcount)
+Foreign-key constraints:
+    "audio_metadata_audio_file_id_fkey" FOREIGN KEY (audio_file_id) REFERENCES audio_files(id) ON DELETE CASCADE
+Triggers:
+    update_audio_metadata_updated_at BEFORE UPDATE ON audio_metadata FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+Access method: heap
+
+
+====================================
+VIEWS
+====================================
+
+                                     List of relations
+ Schema |          Name          | Type |   Owner    | Persistence |  Size   | Description 
+--------+------------------------+------+------------+-------------+---------+-------------
+ public | audio_with_transcripts | view | audio_user | permanent   | 0 bytes | 
+(1 row)
+
+
+--- View Definition: audio_with_transcripts ---
+                                        View "public.audio_with_transcripts"
+           Column           |            Type             | Collation | Nullable | Default | Storage  | Description 
+----------------------------+-----------------------------+-----------+----------+---------+----------+-------------
+ id                         | uuid                        |           |          |         | plain    | 
+ filename                   | character varying(255)      |           |          |         | extended | 
+ file_path                  | character varying(500)      |           |          |         | extended | 
+ month                      | integer                     |           |          |         | plain    | 
+ date                       | integer                     |           |          |         | plain    | 
+ year                       | integer                     |           |          |         | plain    | 
+ classification             | character varying(100)      |           |          |         | extended | 
+ classification_probability | numeric(3,2)                |           |          |         | main     | 
+ transcript_text            | text                        |           |          |         | extended | 
+ word_count                 | integer                     |           |          |         | plain    | 
+ duration_seconds           | numeric(10,2)               |           |          |         | main     | 
+ meta_id                    | character varying(255)      |           |          |         | extended | 
+ author_nickname            | text                        |           |          |         | extended | 
+ stats_playcount            | bigint                      |           |          |         | plain    | 
+ video_duration             | integer                     |           |          |         | plain    | 
+ country                    | character varying(255)      |           |          |         | extended | 
+ created_at                 | timestamp without time zone |           |          |         | plain    | 
+ updated_at                 | timestamp without time zone |           |          |         | plain    | 
+View definition:
+ SELECT a.id,
+    a.filename,
+    a.file_path,
+    a.month,
+    a.date,
+    a.year,
+    a.classification,
+    a.classification_probability,
+    t.transcript_text,
+    t.word_count,
+    t.duration_seconds,
+    m.meta_id,
+    m.author_nickname,
+    m.stats_playcount,
+    m.video_duration,
+    m.country,
+    a.created_at,
+    a.updated_at
+   FROM audio_files a
+     LEFT JOIN transcripts t ON a.id = t.audio_file_id
+     LEFT JOIN audio_metadata m ON a.id = m.audio_file_id;
+
+
+====================================
+INDEXES
+====================================
+
+ schemaname |   tablename    |            indexname             |                                                           indexdef                                                            
+------------+----------------+----------------------------------+-------------------------------------------------------------------------------------------------------------------------------
+ public     | audio_files    | audio_files_filename_key         | CREATE UNIQUE INDEX audio_files_filename_key ON public.audio_files USING btree (filename)
+ public     | audio_files    | audio_files_pkey                 | CREATE UNIQUE INDEX audio_files_pkey ON public.audio_files USING btree (id)
+ public     | audio_files    | idx_audio_files_classification   | CREATE INDEX idx_audio_files_classification ON public.audio_files USING btree (classification)
+ public     | audio_files    | idx_audio_files_date             | CREATE INDEX idx_audio_files_date ON public.audio_files USING btree (year, month, date)
+ public     | audio_files    | idx_audio_files_filename         | CREATE INDEX idx_audio_files_filename ON public.audio_files USING btree (filename)
+ public     | audio_metadata | audio_metadata_audio_file_id_key | CREATE UNIQUE INDEX audio_metadata_audio_file_id_key ON public.audio_metadata USING btree (audio_file_id)
+ public     | audio_metadata | audio_metadata_pkey              | CREATE UNIQUE INDEX audio_metadata_pkey ON public.audio_metadata USING btree (id)
+ public     | audio_metadata | idx_metadata_author_id           | CREATE INDEX idx_metadata_author_id ON public.audio_metadata USING btree (author_id)
+ public     | audio_metadata | idx_metadata_author_uniqueid     | CREATE INDEX idx_metadata_author_uniqueid ON public.audio_metadata USING btree (author_uniqueid)
+ public     | audio_metadata | idx_metadata_country             | CREATE INDEX idx_metadata_country ON public.audio_metadata USING btree (country)
+ public     | audio_metadata | idx_metadata_createtime          | CREATE INDEX idx_metadata_createtime ON public.audio_metadata USING btree (meta_createtime)
+ public     | audio_metadata | idx_metadata_hashtags            | CREATE INDEX idx_metadata_hashtags ON public.audio_metadata USING gin (text_extra_hashtag_mention)
+ public     | audio_metadata | idx_metadata_mentions            | CREATE INDEX idx_metadata_mentions ON public.audio_metadata USING gin (text_extra_user_mention)
+ public     | audio_metadata | idx_metadata_meta_id             | CREATE INDEX idx_metadata_meta_id ON public.audio_metadata USING btree (meta_id)
+ public     | audio_metadata | idx_metadata_music_id            | CREATE INDEX idx_metadata_music_id ON public.audio_metadata USING btree (music_id)
+ public     | audio_metadata | idx_metadata_poi_id              | CREATE INDEX idx_metadata_poi_id ON public.audio_metadata USING btree (poi_id)
+ public     | audio_metadata | idx_metadata_stats               | CREATE INDEX idx_metadata_stats ON public.audio_metadata USING btree (stats_playcount, stats_diggcount)
+ public     | transcripts    | idx_transcripts_audio_file       | CREATE INDEX idx_transcripts_audio_file ON public.transcripts USING btree (audio_file_id)
+ public     | transcripts    | idx_transcripts_text_search      | CREATE INDEX idx_transcripts_text_search ON public.transcripts USING gin (to_tsvector('english'::regconfig, transcript_text))
+ public     | transcripts    | transcripts_audio_file_id_key    | CREATE UNIQUE INDEX transcripts_audio_file_id_key ON public.transcripts USING btree (audio_file_id)
+ public     | transcripts    | transcripts_pkey                 | CREATE UNIQUE INDEX transcripts_pkey ON public.transcripts USING btree (id)
+(21 rows)
+
+
+====================================
+CONSTRAINTS
+====================================
+
+   table_name   |               constraint_name                | constraint_type |                                               definition                                                
+----------------+----------------------------------------------+-----------------+---------------------------------------------------------------------------------------------------------
+ audio_files    | audio_files_month_check                      | CHECK           | CHECK (((month >= 1) AND (month <= 12)))
+ audio_files    | audio_files_date_check                       | CHECK           | CHECK (((date >= 1) AND (date <= 31)))
+ audio_files    | audio_files_year_check                       | CHECK           | CHECK ((year >= 2000))
+ audio_files    | audio_files_classification_probability_check | CHECK           | CHECK (((classification_probability >= (0)::numeric) AND (classification_probability <= (1)::numeric)))
+ audio_files    | audio_files_pkey                             | PRIMARY KEY     | PRIMARY KEY (id)
+ audio_files    | audio_files_filename_key                     | UNIQUE          | UNIQUE (filename)
+ audio_metadata | audio_metadata_audio_file_id_fkey            | FOREIGN KEY     | FOREIGN KEY (audio_file_id) REFERENCES audio_files(id) ON DELETE CASCADE
+ audio_metadata | audio_metadata_pkey                          | PRIMARY KEY     | PRIMARY KEY (id)
+ audio_metadata | audio_metadata_audio_file_id_key             | UNIQUE          | UNIQUE (audio_file_id)
+ transcripts    | transcripts_audio_file_id_fkey               | FOREIGN KEY     | FOREIGN KEY (audio_file_id) REFERENCES audio_files(id) ON DELETE CASCADE
+ transcripts    | transcripts_pkey                             | PRIMARY KEY     | PRIMARY KEY (id)
+ transcripts    | transcripts_audio_file_id_key                | UNIQUE          | UNIQUE (audio_file_id)
+(12 rows)
+
+
+====================================
+FUNCTIONS & TRIGGERS
+====================================
+
+                                 List of functions
+ Schema |           Name           | Result data type | Argument data types | Type 
+--------+--------------------------+------------------+---------------------+------
+ public | update_updated_at_column | trigger          |                     | func
+(1 row)
+
+
+           trigger_name           | event_manipulation | event_object_table |              action_statement               
+----------------------------------+--------------------+--------------------+---------------------------------------------
+ update_audio_files_updated_at    | UPDATE             | audio_files        | EXECUTE FUNCTION update_updated_at_column()
+ update_audio_metadata_updated_at | UPDATE             | audio_metadata     | EXECUTE FUNCTION update_updated_at_column()
+(2 rows)
+
+
+====================================
+TABLE SIZES & ROW COUNTS
+====================================
+
+   table_name   | row_count | total_size | table_size | indexes_size 
+----------------+-----------+------------+------------+--------------
+ audio_files    |         0 | 96 kB      | 8192 bytes | 80 kB
+ audio_metadata |         0 | 120 kB     | 0 bytes    | 112 kB
+ transcripts    |         0 | 48 kB      | 0 bytes    | 40 kB
+(3 rows)
+
+
+====================================
+SQL CREATE STATEMENTS
+====================================
+
+  COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UUIDs)';
+  CREATE FUNCTION public.update_updated_at_column() RETURNS trigger
+  CREATE TABLE public.audio_files (
+  CREATE TABLE public.audio_metadata (
+  CREATE TABLE public.transcripts (
+  CREATE VIEW public.audio_with_transcripts AS
+  CREATE INDEX idx_audio_files_classification ON public.audio_files USING btree (classification);
+  CREATE INDEX idx_audio_files_date ON public.audio_files USING btree (year, month, date);
+  CREATE INDEX idx_audio_files_filename ON public.audio_files USING btree (filename);
+  CREATE INDEX idx_metadata_author_id ON public.audio_metadata USING btree (author_id);
+  CREATE INDEX idx_metadata_author_uniqueid ON public.audio_metadata USING btree (author_uniqueid);
+  CREATE INDEX idx_metadata_country ON public.audio_metadata USING btree (country);
+  CREATE INDEX idx_metadata_createtime ON public.audio_metadata USING btree (meta_createtime);
+  CREATE INDEX idx_metadata_hashtags ON public.audio_metadata USING gin (text_extra_hashtag_mention);
+  CREATE INDEX idx_metadata_mentions ON public.audio_metadata USING gin (text_extra_user_mention);
+  CREATE INDEX idx_metadata_meta_id ON public.audio_metadata USING btree (meta_id);
+  CREATE INDEX idx_metadata_music_id ON public.audio_metadata USING btree (music_id);
+  CREATE INDEX idx_metadata_poi_id ON public.audio_metadata USING btree (poi_id);
+  CREATE INDEX idx_metadata_stats ON public.audio_metadata USING btree (stats_playcount, stats_diggcount);
+  CREATE INDEX idx_transcripts_audio_file ON public.transcripts USING btree (audio_file_id);
+  CREATE INDEX idx_transcripts_text_search ON public.transcripts USING gin (to_tsvector('english'::regconfig, transcript_text));
+  CREATE TRIGGER update_audio_files_updated_at BEFORE UPDATE ON public.audio_files FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  CREATE TRIGGER update_audio_metadata_updated_at BEFORE UPDATE ON public.audio_metadata FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
