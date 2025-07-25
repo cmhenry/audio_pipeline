@@ -89,28 +89,62 @@ echo "   This container includes database tools, Globus CLI, and monitoring"
 echo "   Build time: ~10-15 minutes"
 echo
 
-if [ -f "pipeline_utils.sif" ]; then
-    echo "   Existing pipeline_utils.sif found. Remove it to rebuild."
-    read -p "   Remove and rebuild? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        rm -f pipeline_utils.sif
-    else
-        echo "   Skipping pipeline_utils.sif build."
-    fi
-fi
+# Offer choice between regular and venv-based approach
+echo "   Choose build approach:"
+echo "   1) Standard build (pipeline_utils.def)"
+echo "   2) Virtual environment build (pipeline_utils_venv.def) - recommended for package conflicts"
+echo "   3) Skip pipeline utilities container"
+read -p "   Select option (1/2/3): " -n 1 -r UTILS_BUILD_CHOICE
+echo
 
-if [ ! -f "pipeline_utils.sif" ]; then
-    echo "   Building pipeline_utils.sif..."
-    if sudo singularity build pipeline_utils.sif pipeline_utils.def; then
-        echo "   ✓ pipeline_utils.sif built successfully"
-    else
-        echo "   ✗ Failed to build pipeline_utils.sif"
-        echo "   Check the error messages above for troubleshooting"
-        exit 1
+UTILS_DEF="pipeline_utils.def"
+UTILS_SIF="pipeline_utils.sif"
+
+case $UTILS_BUILD_CHOICE in
+    1)
+        UTILS_DEF="pipeline_utils.def"
+        UTILS_SIF="pipeline_utils.sif"
+        ;;
+    2)
+        UTILS_DEF="pipeline_utils_venv.def"
+        UTILS_SIF="pipeline_utils_venv.sif"
+        echo "   Using virtual environment approach to avoid package conflicts"
+        ;;
+    3)
+        echo "   Skipping pipeline utilities container build"
+        UTILS_SIF=""
+        ;;
+    *)
+        echo "   Invalid choice, defaulting to virtual environment build"
+        UTILS_DEF="pipeline_utils_venv.def"
+        UTILS_SIF="pipeline_utils_venv.sif"
+        ;;
+esac
+
+if [ -n "$UTILS_SIF" ]; then
+    if [ -f "$UTILS_SIF" ]; then
+        echo "   Existing $UTILS_SIF found. Remove it to rebuild."
+        read -p "   Remove and rebuild? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            rm -f "$UTILS_SIF"
+        else
+            echo "   Skipping $UTILS_SIF build."
+        fi
     fi
-else
-    echo "   ✓ pipeline_utils.sif already exists"
+
+    if [ ! -f "$UTILS_SIF" ]; then
+        echo "   Building $UTILS_SIF from $UTILS_DEF..."
+        if sudo singularity build "$UTILS_SIF" "$UTILS_DEF"; then
+            echo "   ✓ $UTILS_SIF built successfully"
+        else
+            echo "   ✗ Failed to build $UTILS_SIF"
+            echo "   Check the error messages above for troubleshooting"
+            exit 1
+        fi
+    else
+        echo "   ✓ $UTILS_SIF already exists"
+    fi
 fi
 
 echo
@@ -121,13 +155,26 @@ ls -lh *.sif 2>/dev/null || echo "No .sif files found"
 echo
 echo "=== Next Steps ==="
 echo "1. Test the containers:"
-echo "   singularity run --nv audio_processing.sif --help"
-echo "   singularity run pipeline_utils.sif --help"
+if [ -f "audio_processing.sif" ]; then
+    echo "   singularity run --nv audio_processing.sif --help"
+elif [ -f "audio_processing_venv.sif" ]; then
+    echo "   singularity run --nv audio_processing_venv.sif --help"
+fi
+if [ -f "pipeline_utils.sif" ]; then
+    echo "   singularity run pipeline_utils.sif --help"
+elif [ -f "pipeline_utils_venv.sif" ]; then
+    echo "   singularity run pipeline_utils_venv.sif --help"
+fi
 echo
 echo "2. Test GPU access (on GPU node):"
-echo "   singularity exec --nv audio_processing.sif python -c \"import torch; print(torch.cuda.is_available())\""
+if [ -f "audio_processing.sif" ]; then
+    echo "   singularity exec --nv audio_processing.sif python -c \"import torch; print(torch.cuda.is_available())\""
+elif [ -f "audio_processing_venv.sif" ]; then
+    echo "   singularity exec --nv audio_processing_venv.sif python -c \"import torch; print(torch.cuda.is_available())\""
+fi
 echo
 echo "3. Update your job scripts to use these containers"
+echo "   Note: If using venv containers, update container paths in job scripts accordingly"
 
 echo
 echo "=== Container Usage Notes ==="

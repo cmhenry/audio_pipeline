@@ -4,7 +4,7 @@ This directory contains Singularity container definitions and build scripts for 
 
 ## Container Overview
 
-### `audio_processing.sif`
+### `audio_processing.sif` / `audio_processing_venv.sif`
 **GPU-enabled container for audio processing**
 - **Base**: nvidia/cuda:12.1-cudnn8-devel-ubuntu22.04
 - **Purpose**: WhisperX transcription, PyTorch operations, audio conversion
@@ -13,8 +13,9 @@ This directory contains Singularity container definitions and build scripts for 
   - PyTorch with CUDA 12.1 support
   - FFmpeg for audio conversion
   - Python 3.10 with scientific libraries
+- **Variants**: Standard (`audio_processing.sif`) or virtual environment (`audio_processing_venv.sif`)
 
-### `pipeline_utils.sif`
+### `pipeline_utils.sif` / `pipeline_utils_venv.sif`
 **Utilities container for database and orchestration**
 - **Base**: ubuntu:22.04
 - **Purpose**: Database operations, Globus transfers, monitoring
@@ -23,6 +24,7 @@ This directory contains Singularity container definitions and build scripts for 
   - Globus CLI and SDK
   - Flask for monitoring API
   - Python 3.10 with database libraries
+- **Variants**: Standard (`pipeline_utils.sif`) or virtual environment (`pipeline_utils_venv.sif`)
 
 ## Building Containers
 

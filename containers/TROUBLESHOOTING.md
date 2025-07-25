@@ -14,18 +14,21 @@
 
 **Option A: Use Virtual Environment Build (Recommended)**
 ```bash
-# Use the venv-based container definition
+# Use the venv-based container definitions
 ./build_containers.sh
-# Select option 2 when prompted
+# Select option 2 for both audio_processing and pipeline_utils when prompted
 ```
 
 **Option B: Manual Fix for Standard Build**
-If you prefer the standard build, modify `audio_processing.def`:
+If you prefer the standard build, modify both `audio_processing.def` and `pipeline_utils.def`:
 ```dockerfile
 # Add to %post section before pip installs:
 python -m pip uninstall -y blinker || true
 apt-get remove -y python3-blinker || true
 apt-get autoremove -y
+
+# Then install Flask dependencies carefully:
+pip install blinker>=1.6.0 flask
 ```
 
 ### 2. CUDA Compatibility Issues
