@@ -23,23 +23,62 @@ echo "   This container includes WhisperX, PyTorch with CUDA, and FFmpeg"
 echo "   Build time: ~20-30 minutes"
 echo
 
-if [ -f "audio_processing.sif" ]; then
-    echo "   Existing audio_processing.sif found. Remove it to rebuild."
-    read -p "   Remove and rebuild? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        rm -f audio_processing.sif
-    else
-        echo "   Skipping audio_processing.sif build."
-    fi
-fi
+# Offer choice between regular and venv-based approach
+echo "   Choose build approach:"
+echo "   1) Standard build (audio_processing.def)"
+echo "   2) Virtual environment build (audio_processing_venv.def) - recommended for package conflicts"
+echo "   3) Skip audio processing container"
+read -p "   Select option (1/2/3): " -n 1 -r BUILD_CHOICE
+echo
 
-if [ ! -f "audio_processing.sif" ]; then
-    echo "   Building audio_processing.sif..."
-    singularity build audio_processing.sif audio_processing.def
-    echo "   ✓ audio_processing.sif built successfully"
-else
-    echo "   ✓ audio_processing.sif already exists"
+AUDIO_DEF="audio_processing.def"
+AUDIO_SIF="audio_processing.sif"
+
+case $BUILD_CHOICE in
+    1)
+        AUDIO_DEF="audio_processing.def"
+        AUDIO_SIF="audio_processing.sif"
+        ;;
+    2)
+        AUDIO_DEF="audio_processing_venv.def"
+        AUDIO_SIF="audio_processing_venv.sif"
+        echo "   Using virtual environment approach to avoid package conflicts"
+        ;;
+    3)
+        echo "   Skipping audio processing container build"
+        AUDIO_SIF=""
+        ;;
+    *)
+        echo "   Invalid choice, defaulting to virtual environment build"
+        AUDIO_DEF="audio_processing_venv.def"
+        AUDIO_SIF="audio_processing_venv.sif"
+        ;;
+esac
+
+if [ -n "$AUDIO_SIF" ]; then
+    if [ -f "$AUDIO_SIF" ]; then
+        echo "   Existing $AUDIO_SIF found. Remove it to rebuild."
+        read -p "   Remove and rebuild? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            rm -f "$AUDIO_SIF"
+        else
+            echo "   Skipping $AUDIO_SIF build."
+        fi
+    fi
+
+    if [ ! -f "$AUDIO_SIF" ]; then
+        echo "   Building $AUDIO_SIF from $AUDIO_DEF..."
+        if sudo singularity build "$AUDIO_SIF" "$AUDIO_DEF"; then
+            echo "   ✓ $AUDIO_SIF built successfully"
+        else
+            echo "   ✗ Failed to build $AUDIO_SIF"
+            echo "   Check the error messages above for troubleshooting"
+            exit 1
+        fi
+    else
+        echo "   ✓ $AUDIO_SIF already exists"
+    fi
 fi
 
 echo
@@ -63,8 +102,13 @@ fi
 
 if [ ! -f "pipeline_utils.sif" ]; then
     echo "   Building pipeline_utils.sif..."
-    singularity build pipeline_utils.sif pipeline_utils.def
-    echo "   ✓ pipeline_utils.sif built successfully"
+    if sudo singularity build pipeline_utils.sif pipeline_utils.def; then
+        echo "   ✓ pipeline_utils.sif built successfully"
+    else
+        echo "   ✗ Failed to build pipeline_utils.sif"
+        echo "   Check the error messages above for troubleshooting"
+        exit 1
+    fi
 else
     echo "   ✓ pipeline_utils.sif already exists"
 fi

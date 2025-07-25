@@ -3,15 +3,16 @@ From: nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
 
 %labels
     Author TikTok Audio Pipeline Team
-    Version 1.0
-    Description Audio processing container with WhisperX, PyTorch, and CUDA support
+    Version 1.1
+    Description Audio processing container with WhisperX, PyTorch, and CUDA support (venv-based)
 
 %environment
     export CUDA_HOME=/usr/local/cuda
-    export PATH=/usr/local/cuda/bin:$PATH
+    export PATH=/opt/venv/bin:/usr/local/cuda/bin:$PATH
     export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
     export PYTHONPATH=/opt/audio_pipeline/src:$PYTHONPATH
     export TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"
+    export VIRTUAL_ENV=/opt/venv
 
 %post
     # Update system and install system dependencies
@@ -20,7 +21,6 @@ From: nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
         git \
         python3.10 \
         python3.10-dev \
-        python3-pip \
         python3.10-venv \
         wget \
         curl \
@@ -32,28 +32,24 @@ From: nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
     ln -sf /usr/bin/python3.10 /usr/bin/python
     ln -sf /usr/bin/python3.10 /usr/bin/python3
 
-    # Upgrade pip and install build tools
-    python -m pip install --upgrade pip setuptools wheel
+    # Create virtual environment to avoid system package conflicts
+    python -m venv /opt/venv
+    . /opt/venv/bin/activate
 
-    # Fix blinker conflict by removing system version first
-    python -m pip uninstall -y blinker || true
-    apt-get remove -y python3-blinker || true
+    # Upgrade pip and install build tools in venv
+    pip install --upgrade pip setuptools wheel
 
     # Install PyTorch with CUDA 12.1 support
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-    # Install core Python dependencies with specific versions to avoid conflicts
+    # Install core Python dependencies
     pip install \
         psycopg2-binary \
         pandas \
         pyarrow \
+        flask \
         numpy \
         scipy
-
-    # Install Flask and its dependencies carefully
-    pip install \
-        blinker>=1.6.0 \
-        flask
 
     # Install WhisperX with dependencies
     pip install whisperx
@@ -76,6 +72,7 @@ From: nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
 
 %runscript
     #!/bin/bash
+    . /opt/venv/bin/activate
     exec python "$@"
 
 %help
@@ -84,12 +81,12 @@ From: nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
     - PyTorch with CUDA 12.1 support
     - FFmpeg for audio format conversion
     - PostgreSQL client libraries
-    - All required Python dependencies
+    - All required Python dependencies in isolated virtual environment
     
     Usage:
-    sudo singularity run --nv audio_processing.sif /path/to/script.py [args]
+    singularity run --nv audio_processing_venv.sif /path/to/script.py [args]
     
     For GPU access, always use --nv flag to bind NVIDIA drivers.
     
     Example:
-    sudo singularity run --nv audio_processing.sif hpc_process_day.py --date 2024-01-15 --db-host VM_IP
+    singularity run --nv audio_processing_venv.sif hpc_process_day.py --date 2024-01-15 --db-host VM_IP

@@ -88,9 +88,18 @@ singularity exec pipeline_utils.sif globus transfer --help
 
 ## Troubleshooting
 
-### Common Issues
+For comprehensive troubleshooting information, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
-**GPU not detected in container**
+### Quick Fixes
+
+**Blinker package conflict during build:**
+```bash
+# Use the virtual environment build approach
+./build_containers.sh
+# Select option 2 when prompted
+```
+
+**GPU not detected in container:**
 ```bash
 # Ensure NVIDIA runtime is available
 nvidia-smi
@@ -99,20 +108,12 @@ nvidia-smi
 singularity run --nv audio_processing.sif
 ```
 
-**Permission denied errors**
+**Build failures:**
 ```bash
-# Ensure bind mount directories are accessible
-ls -la /path/to/bind/mount
+# Enable debug output
+sudo singularity build --debug container.sif container.def
 
-# Check container is not running as root
-singularity exec container.sif whoami
-```
-
-**Module conflicts**
-```bash
-# Clear existing modules before running containers
-module purge
-module load singularity
+# Check troubleshooting guide for specific error messages
 ```
 
 ### Performance Optimization
