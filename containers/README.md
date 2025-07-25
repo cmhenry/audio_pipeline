@@ -146,5 +146,3 @@ All SLURM job scripts have been updated to use these containers:
 - `1_globus_transfer_job.sh` uses `pipeline_utils.sif`
 - `2_process_audio_job.sh` uses `audio_processing.sif` with `--nv`
 - `0_master_scheduler.sh` uses `pipeline_utils.sif`
-
-See the main CLAUDE.md for complete containerized workflow documentation.

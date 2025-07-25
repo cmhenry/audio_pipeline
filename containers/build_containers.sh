@@ -36,7 +36,7 @@ fi
 
 if [ ! -f "audio_processing.sif" ]; then
     echo "   Building audio_processing.sif..."
-    sudo singularity build audio_processing.sif audio_processing.def
+    singularity build audio_processing.sif audio_processing.def
     echo "   ✓ audio_processing.sif built successfully"
 else
     echo "   ✓ audio_processing.sif already exists"
@@ -63,7 +63,7 @@ fi
 
 if [ ! -f "pipeline_utils.sif" ]; then
     echo "   Building pipeline_utils.sif..."
-    sudo singularity build pipeline_utils.sif pipeline_utils.def
+    singularity build pipeline_utils.sif pipeline_utils.def
     echo "   ✓ pipeline_utils.sif built successfully"
 else
     echo "   ✓ pipeline_utils.sif already exists"
@@ -84,7 +84,6 @@ echo "2. Test GPU access (on GPU node):"
 echo "   singularity exec --nv audio_processing.sif python -c \"import torch; print(torch.cuda.is_available())\""
 echo
 echo "3. Update your job scripts to use these containers"
-echo "4. Update CLAUDE.md with containerized workflow"
 
 echo
 echo "=== Container Usage Notes ==="
