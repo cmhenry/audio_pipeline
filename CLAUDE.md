@@ -86,6 +86,24 @@ singularity run --bind ./src:/opt/audio_pipeline/src containers/pipeline_utils.s
 python -c "from storage_manager import create_storage_manager; sm = create_storage_manager('VM_IP'); print('Storage ready')"
 ```
 
+### Processing Queue Management
+```bash
+# Load test queue (5 days starting Jan 25th)
+./load_test_queue.sh
+
+# Load custom queue from file
+python src/db_utils.py --db-string "$DB_CREDS" load-queue queue_entries.txt
+
+# Create sample queue file
+python src/load_processing_queue.py --create-sample sample_queue.txt
+
+# Check pending entries
+python src/db_utils.py --db-string "$DB_CREDS" get-pending --limit 10
+
+# Test database connection
+python src/db_utils.py --db-string "$DB_CREDS" test-connection
+```
+
 ## Database Schema
 
 The system uses PostgreSQL with 4 main tables:

@@ -188,6 +188,29 @@ class ProcessingQueueManager:
         
         result = self.db.execute(query, [year, month, day])
         return result[0] if result else None
+    
+    def add_queue_entry(self, year, month, day, location, skip_existing=True):
+        """Add entry to processing queue"""
+        if skip_existing:
+            # Check if entry already exists
+            query = """
+                SELECT id FROM processing_queue 
+                WHERE year = %s AND month = %s AND date = %s AND location = %s
+            """
+            
+            if self.db.execute(query, [year, month, day, location]):
+                logger.info(f"Entry already exists: {year}-{month:02d}-{day:02d} {location}")
+                return False
+        
+        # Insert new entry
+        query = """
+            INSERT INTO processing_queue (year, month, date, location, status, created_at)
+            VALUES (%s, %s, %s, %s, 'pending', NOW())
+        """
+        
+        self.db.execute(query, [year, month, day, location])
+        logger.info(f"Added queue entry: {year}-{month:02d}-{day:02d} {location}")
+        return True
 
 
 def main():
@@ -229,6 +252,14 @@ def main():
     # Check job exists
     check_parser = subparsers.add_parser('check-job', help='Check if job exists')
     check_parser.add_argument('date', help='Date (YYYY-MM-DD)')
+    
+    # Load queue entries
+    load_parser = subparsers.add_parser('load-queue', help='Load queue entries from file')
+    load_parser.add_argument('file', help='File with queue entries (year,month,date,location per line)')
+    load_parser.add_argument('--force', action='store_true', help='Overwrite existing entries')
+    
+    # Test connection
+    test_parser = subparsers.add_parser('test-connection', help='Test database connection')
     
     args = parser.parse_args()
     
@@ -291,6 +322,43 @@ def main():
                 sys.exit(1)  # Exit with error to indicate job exists
             else:
                 sys.exit(0)  # Success - no job exists
+                
+        elif args.command == 'load-queue':
+            # Load queue entries from file
+            from pathlib import Path
+            
+            file_path = Path(args.file)
+            if not file_path.exists():
+                logger.error(f"File not found: {file_path}")
+                sys.exit(1)
+            
+            # Import the parsing function from load_processing_queue.py
+            sys.path.insert(0, str(file_path.parent))
+            try:
+                from load_processing_queue import parse_queue_file
+                entries = parse_queue_file(file_path)
+                
+                if not entries:
+                    logger.error("No valid entries found in file")
+                    sys.exit(1)
+                
+                loaded_count = 0
+                for entry in entries:
+                    if queue_mgr.add_queue_entry(
+                        entry['year'], entry['month'], entry['date'], entry['location'],
+                        skip_existing=not args.force
+                    ):
+                        loaded_count += 1
+                
+                print(f"Loaded {loaded_count} entries into processing queue")
+                
+            except ImportError:
+                logger.error("Could not import queue file parser. Make sure load_processing_queue.py is in the same directory.")
+                sys.exit(1)
+                
+        elif args.command == 'test-connection':
+            print(f"Database connection successful: {db.connection_string}")
+            print("Ready to execute operations")
         
         db.close()
         

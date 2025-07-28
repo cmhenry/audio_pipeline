@@ -1,0 +1,9 @@
+# Test Processing Queue - 5 Days for Pipeline Testing
+# Format: year, month, date, location
+# Starting with January 25th as requested
+
+2025, january, 25, zurich
+2025, january, 26, zurich
+2025, january, 27, zurich
+2025, january, 28, zurich
+2025, january, 29, zurich
