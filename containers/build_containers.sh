@@ -41,7 +41,7 @@ case $BUILD_CHOICE in
         ;;
     2)
         AUDIO_DEF="audio_processing_venv.def"
-        AUDIO_SIF="audio_processing_venv.sif"
+        AUDIO_SIF="audio_processing.sif"
         echo "   Using virtual environment approach to avoid package conflicts"
         ;;
     3)
@@ -51,7 +51,7 @@ case $BUILD_CHOICE in
     *)
         echo "   Invalid choice, defaulting to virtual environment build"
         AUDIO_DEF="audio_processing_venv.def"
-        AUDIO_SIF="audio_processing_venv.sif"
+        AUDIO_SIF="audio_processing.sif"
         ;;
 esac
 
@@ -107,7 +107,7 @@ case $UTILS_BUILD_CHOICE in
         ;;
     2)
         UTILS_DEF="pipeline_utils_venv.def"
-        UTILS_SIF="pipeline_utils_venv.sif"
+        UTILS_SIF="pipeline_utils.sif"
         echo "   Using virtual environment approach to avoid package conflicts"
         ;;
     3)
@@ -117,7 +117,7 @@ case $UTILS_BUILD_CHOICE in
     *)
         echo "   Invalid choice, defaulting to virtual environment build"
         UTILS_DEF="pipeline_utils_venv.def"
-        UTILS_SIF="pipeline_utils_venv.sif"
+        UTILS_SIF="pipeline_utils.sif"
         ;;
 esac
 
@@ -158,19 +158,19 @@ echo "1. Test the containers:"
 if [ -f "audio_processing.sif" ]; then
     echo "   singularity run --nv audio_processing.sif --help"
 elif [ -f "audio_processing_venv.sif" ]; then
-    echo "   singularity run --nv audio_processing_venv.sif --help"
+    echo "   singularity run --nv audio_processing.sif --help"
 fi
 if [ -f "pipeline_utils.sif" ]; then
     echo "   singularity run pipeline_utils.sif --help"
 elif [ -f "pipeline_utils_venv.sif" ]; then
-    echo "   singularity run pipeline_utils_venv.sif --help"
+    echo "   singularity run pipeline_utils.sif --help"
 fi
 echo
 echo "2. Test GPU access (on GPU node):"
 if [ -f "audio_processing.sif" ]; then
     echo "   singularity exec --nv audio_processing.sif python -c \"import torch; print(torch.cuda.is_available())\""
 elif [ -f "audio_processing_venv.sif" ]; then
-    echo "   singularity exec --nv audio_processing_venv.sif python -c \"import torch; print(torch.cuda.is_available())\""
+    echo "   singularity exec --nv audio_processing.sif python -c \"import torch; print(torch.cuda.is_available())\""
 fi
 echo
 echo "3. Update your job scripts to use these containers"

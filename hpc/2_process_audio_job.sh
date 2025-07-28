@@ -29,7 +29,7 @@ TEMP_DIR="/scratch/cohenr/audio_storage/${SLURM_JOB_ID}"  # Node-local fast stor
 
 # Storage configuration for rsync
 RSYNC_USER="audio_user"
-STORAGE_ROOT="/opt/audio_storage"
+STORAGE_ROOT="/mnt/storage/audio_storage"
 
 # Create temp directory on local node
 mkdir -p "$TEMP_DIR"

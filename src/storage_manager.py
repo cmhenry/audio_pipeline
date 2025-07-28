@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class RsyncStorageManager:
     """Manages audio file storage using rsync to database server"""
     
-    def __init__(self, db_host: str, storage_root: str = "/opt/audio_storage", 
+    def __init__(self, db_host: str, storage_root: str = "/mnt/storage/audio_storage", 
                  rsync_user: str = "audio_user", max_retries: int = 3):
         """
         Initialize rsync storage manager
