@@ -1,5 +1,5 @@
 #!/bin/bash
-# load_test_queue.sh - Quick script to load test queue entries
+# load_test_queue.sh - Quick script to load test queue entries using Singularity
 
 set -e
 
@@ -7,6 +7,16 @@ set -e
 DB_HOST="172.23.76.3"
 DB_CREDS="host=${DB_HOST} port=5432 dbname=audio_pipeline user=audio_user password=audio_password"
 SCRIPT_DIR="$(dirname "$0")/src"
+CONTAINER_DIR="$(dirname "$0")/containers"
+PIPELINE_UTILS_SIF="${CONTAINER_DIR}/pipeline_utils.sif"
+
+# Check if container exists
+if [ ! -f "$PIPELINE_UTILS_SIF" ]; then
+    echo "Error: Singularity container not found at $PIPELINE_UTILS_SIF"
+    echo "Please build the containers first:"
+    echo "  cd containers && ./build_containers.sh"
+    exit 1
+fi
 
 echo "=== Audio Pipeline Queue Loader ==="
 echo "Loading test queue entries into processing queue"
@@ -32,7 +42,10 @@ fi
 
 # Test database connection first
 echo "Testing database connection..."
-if python "$SCRIPT_DIR/db_utils.py" --db-string "$DB_CREDS" test-connection; then
+if singularity run \
+    --bind "${SCRIPT_DIR}:/opt/audio_pipeline/src" \
+    "${PIPELINE_UTILS_SIF}" \
+    /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" test-connection; then
     echo "✓ Database connection successful"
 else
     echo "✗ Database connection failed"
@@ -44,7 +57,11 @@ echo
 
 # Load the queue entries
 echo "Loading queue entries from $TEST_FILE..."
-if python "$SCRIPT_DIR/db_utils.py" --db-string "$DB_CREDS" load-queue "$TEST_FILE"; then
+if singularity run \
+    --bind "${SCRIPT_DIR}:/opt/audio_pipeline/src" \
+    --bind "$(pwd):/workspace" \
+    "${PIPELINE_UTILS_SIF}" \
+    /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" load-queue "/workspace/$TEST_FILE"; then
     echo "✓ Queue entries loaded successfully"
 else
     echo "✗ Failed to load queue entries"
@@ -55,7 +72,10 @@ echo
 
 # Show pending entries
 echo "Current pending entries in processing queue:"
-python "$SCRIPT_DIR/db_utils.py" --db-string "$DB_CREDS" get-pending --limit 10
+singularity run \
+    --bind "${SCRIPT_DIR}:/opt/audio_pipeline/src" \
+    "${PIPELINE_UTILS_SIF}" \
+    /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" get-pending --limit 10
 
 echo
 echo "=== Pipeline Ready ==="
