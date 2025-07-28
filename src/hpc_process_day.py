@@ -1,4 +1,4 @@
-# hpc_process_day.py - Updated for timestamped file structure
+# hpc_process_day.py - Updated for timestamped file structure and rsync storage
 import argparse
 import psycopg2
 import pandas as pd
@@ -13,6 +13,8 @@ import subprocess
 import logging
 import gc
 from typing import List, Dict, Tuple
+
+from storage_manager import create_storage_manager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -34,8 +36,13 @@ class HPCTimestampedAudioProcessor:
             password=args.db_password
         )
         
-        # Cloud storage configuration
-        # self.cloud_storage = self._init_cloud_storage(args.cloud_config)
+        # Storage configuration - use rsync to database host
+        self.storage = create_storage_manager(
+            db_host=args.db_host,
+            use_dummy=getattr(args, 'use_dummy_storage', False),
+            rsync_user=getattr(args, 'rsync_user', 'audio_user'),
+            storage_root=getattr(args, 'storage_root', '/opt/audio_storage')
+        )
         
         # Initialize WhisperX on GPU
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -172,14 +179,16 @@ class HPCTimestampedAudioProcessor:
                     """, (audio_id, transcript['transcript'], 
                           transcript['word_count'], transcript.get('duration', 0)))
                     
-                    # Upload to cloud storage
-                    cloud_path = f"audio/{self.year}/{self.month:02d}/{self.day:02d}/{timestamp}/{opus_path.name}"
-                    if self._upload_to_cloud(opus_path, cloud_path):
+                    # Upload to storage via rsync
+                    storage_path = self.storage.get_storage_path(
+                        self.year, self.month, self.day, timestamp, opus_path.name
+                    )
+                    if self.storage.upload_file(opus_path, storage_path):
                         cur.execute("""
                             UPDATE audio_files 
                             SET file_path = %s 
                             WHERE id = %s
-                        """, (cloud_path, audio_id))
+                        """, (storage_path, audio_id))
                     
                     self.processed_count += 1
                     
@@ -345,16 +354,6 @@ class HPCTimestampedAudioProcessor:
         except Exception as e:
             logger.error(f"Failed to store metadata: {e}")
     
-    def _upload_to_cloud(self, local_path: Path, cloud_path: str) -> bool:
-        """Upload file to cloud storage"""
-        try:
-            # Implement your cloud storage upload
-            # This is a placeholder - replace with actual implementation
-            self.cloud_storage.upload_file(str(local_path), cloud_path)
-            return True
-        except Exception as e:
-            logger.error(f"Failed to upload {local_path.name}: {e}")
-            return False
     
     def _update_processing_stats(self):
         """Update processing statistics in database"""
@@ -378,14 +377,6 @@ class HPCTimestampedAudioProcessor:
             
             self.db.commit()
     
-    def _init_cloud_storage(self, config_path: str):
-        """Initialize cloud storage client"""
-        # Placeholder - implement based on your cloud provider
-        class DummyCloudStorage:
-            def upload_file(self, local_path, cloud_path):
-                logger.info(f"Would upload {local_path} to {cloud_path}")
-        
-        return DummyCloudStorage()
 
 
 def main():
@@ -393,11 +384,15 @@ def main():
     parser.add_argument('--date', required=True, help='Date to process (YYYY-MM-DD)')
     parser.add_argument('--staging-dir', required=True, help='Staging directory path')
     parser.add_argument('--temp-dir', required=True, help='Temporary directory path')
-    parser.add_argument('--db-host', required=True, help='Database host')
+    parser.add_argument('--db-host', required=True, help='Database host (also rsync target)')
     parser.add_argument('--db-password', default='audio_password', help='Database password')
-    parser.add_argument('--cloud-config', required=True, help='Cloud storage config file')
     parser.add_argument('--batch-size', type=int, default=100, help='Audio files per batch')
     parser.add_argument('--num-workers', type=int, default=32, help='Parallel workers')
+    
+    # Storage options
+    parser.add_argument('--rsync-user', default='audio_user', help='Username for rsync transfers')
+    parser.add_argument('--storage-root', default='/opt/audio_storage', help='Root directory on target server')
+    parser.add_argument('--use-dummy-storage', action='store_true', help='Use dummy storage (no actual transfers)')
     
     args = parser.parse_args()
     

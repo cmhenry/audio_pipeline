@@ -26,7 +26,10 @@ export DB_CREDS
 # Set up paths
 STAGING_DIR="/scratch/cohenr/audio_storage/staging/${DATE_STR}"
 TEMP_DIR="/scratch/cohenr/audio_storage/${SLURM_JOB_ID}"  # Node-local fast storage
-# CLOUD_STORAGE_CONFIG="/home/user/.cloud_storage_config"
+
+# Storage configuration for rsync
+RSYNC_USER="audio_user"
+STORAGE_ROOT="/opt/audio_storage"
 
 # Create temp directory on local node
 mkdir -p "$TEMP_DIR"
@@ -50,6 +53,8 @@ singularity run --nv \
     --temp-dir "/temp" \
     --db-host "$DB_HOST" \
     --db-password "$DB_PASSWORD" \
+    --rsync-user "$RSYNC_USER" \
+    --storage-root "$STORAGE_ROOT" \
     --batch-size 100 \
     --num-workers 32
 

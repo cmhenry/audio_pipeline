@@ -18,7 +18,7 @@ The system consists of three main layers:
 2. Globus transfers fetch timestamped tar archives from source
 3. Audio processing converts MP3→Opus and runs batch GPU transcription
 4. Results stored in PostgreSQL with metadata from Parquet files
-5. Processed audio uploaded to cloud storage
+5. Processed audio uploaded to database server via rsync
 
 ## Key Commands
 
@@ -60,20 +60,30 @@ sbatch --export=DATE=2024-01-15 ./hpc/1_globus_transfer_job.sh
 sbatch --export=DATE=2024-01-15,DB_PASSWORD=your_password ./hpc/2_process_audio_job.sh
 
 # Process single day (direct containerized execution)
-singularity run --nv --bind ./hpc/src:/opt/audio_pipeline/src --bind /staging:/staging --bind /tmp:/temp \
+singularity run --nv --bind ./src:/opt/audio_pipeline/src --bind /staging:/staging --bind /tmp:/temp \
     containers/audio_processing.sif /opt/audio_pipeline/src/hpc_process_day.py \
-    --date 2024-01-15 --db-host VM_IP --db-password PASSWORD --staging-dir /staging --temp-dir /temp
+    --date 2024-01-15 --db-host VM_IP --db-password PASSWORD --staging-dir /staging --temp-dir /temp \
+    --rsync-user audio_user --storage-root /opt/audio_storage
 ```
 
 ### Monitoring
 ```bash
 # Start monitoring API (containerized)
-singularity run --bind ./vm:/opt/audio_pipeline/vm --bind ./hpc/src:/opt/audio_pipeline/src \
+singularity run --bind ./vm:/opt/audio_pipeline/vm --bind ./src:/opt/audio_pipeline/src \
     containers/pipeline_utils.sif /opt/audio_pipeline/vm/monitor_pipeline.py
 
 # Check processing queue status
-singularity run --bind ./hpc/src:/opt/audio_pipeline/src containers/pipeline_utils.sif \
+singularity run --bind ./src:/opt/audio_pipeline/src containers/pipeline_utils.sif \
     /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" get-pending --limit 10
+```
+
+### Storage Setup
+```bash
+# Set up SSH key authentication for rsync
+./src/setup_ssh_keys.sh
+
+# Test storage manager
+python -c "from storage_manager import create_storage_manager; sm = create_storage_manager('VM_IP'); print('Storage ready')"
 ```
 
 ## Database Schema
@@ -114,14 +124,16 @@ The pipeline runs entirely in Singularity containers for consistent environments
 
 ## File Organization
 
-- `containers/audio_processing.def`: GPU container definition (WhisperX, PyTorch)
-- `containers/pipeline_utils.def`: Utilities container definition (DB, Globus)
+- `containers/audio_processing.def`: GPU container definition (WhisperX, PyTorch, rsync)
+- `containers/pipeline_utils.def`: Utilities container definition (DB, Globus, rsync)
 - `containers/build_containers.sh`: Container build script
 - `hpc/0_master_scheduler.sh`: Main orchestration (cron-scheduled, containerized)
 - `hpc/1_globus_transfer_job.sh`: Automated data transfer (containerized)
 - `hpc/2_process_audio_job.sh`: Audio processing job submission (containerized)
-- `hpc/src/hpc_process_day.py`: Core processing logic
-- `hpc/src/db_utils.py`: Database utilities replacing raw SQL
+- `src/hpc_process_day.py`: Core audio processing logic with rsync storage
+- `src/storage_manager.py`: Rsync-based storage management module
+- `src/setup_ssh_keys.sh`: SSH key setup helper for rsync authentication
+- `src/db_utils.py`: Database utilities replacing raw SQL
 - `db/setup_postgres.sh`: Automated PostgreSQL deployment
 - `db/manage_schema.sh`: Schema creation and migration
 - `vm/monitor_pipeline.py`: Flask monitoring API
