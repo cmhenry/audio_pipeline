@@ -35,7 +35,7 @@ class HPCTimestampedAudioProcessor:
         )
         
         # Cloud storage configuration
-        self.cloud_storage = self._init_cloud_storage(args.cloud_config)
+        # self.cloud_storage = self._init_cloud_storage(args.cloud_config)
         
         # Initialize WhisperX on GPU
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
