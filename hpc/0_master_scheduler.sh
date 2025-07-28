@@ -4,10 +4,10 @@
 # Updated for Singularity containers
 
 # Container paths
-CONTAINER_DIR="/shares/bdm.ipz.uzh/audio_pipeline/containers"
+CONTAINER_DIR="/data/cohenr/audio_pipeline/containers"
 PIPELINE_UTILS_SIF="${CONTAINER_DIR}/pipeline_utils.sif"
 
-SCRIPT_DIR="/shares/bdm.ipz.uzh/audio_pipeline/src"
+SCRIPT_DIR="/data/cohenr/audio_pipeline/src"
 WORK_DIR="/shares/bdm.ipz.uzh/audio_pipeline"
 DB_CREDS="host=172.23.76.3 port=5432 dbname=audio_pipeline user=audio_user password=audio_password"
 export DB_CREDS

@@ -13,9 +13,9 @@
 DATE_STR=$1
 
 # Container paths
-CONTAINER_DIR="/shares/bdm.ipz.uzh/audio_pipeline/containers"
+CONTAINER_DIR="/data/cohenr/audio_pipeline/containers"
 AUDIO_PROCESSING_SIF="${CONTAINER_DIR}/audio_processing.sif"
-SCRIPT_DIR="/shares/bdm.ipz.uzh/audio_pipeline/src"
+SCRIPT_DIR="/data/cohenr/audio_pipeline/src"
 
 # Database connection
 DB_HOST="172.23.76.3"

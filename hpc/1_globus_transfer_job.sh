@@ -19,9 +19,9 @@ DB_CREDS="host=172.23.76.3 port=5432 dbname=audio_pipeline user=audio_user passw
 export DB_CREDS
 
 # Container paths
-CONTAINER_DIR="/shares/bdm.ipz.uzh/audio_pipeline/containers"
+CONTAINER_DIR="/data/cohenr/audio_pipeline/containers"
 PIPELINE_UTILS_SIF="${CONTAINER_DIR}/pipeline_utils.sif"
-SCRIPT_DIR="/shares/bdm.ipz.uzh/audio_pipeline/src"
+SCRIPT_DIR="/data/cohenr/audio_pipeline/src"
 
 # Convert month number to name (e.g., 01 -> january)
 MONTH_NAME=$(date -d "${YEAR}-${MONTH}-01" +%B | tr '[:upper:]' '[:lower:]')
