@@ -36,7 +36,7 @@ class DatabaseConnection:
     
     def _build_connection_string(self):
         """Build connection string from environment variables"""
-        host = os.getenv('DB_HOST', 'your-cloud-vm.example.com')
+        host = os.getenv('DB_HOST', '172.23.76.3')
         port = os.getenv('DB_PORT', '5432')
         database = os.getenv('DB_NAME', 'audio_pipeline')
         user = os.getenv('DB_USER', 'audio_user')
