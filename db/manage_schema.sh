@@ -364,7 +364,7 @@ CREATE INDEX IF NOT EXISTS idx_metadata_mentions ON audio_metadata USING gin(tex
 
 -- Processing queue indexes
 CREATE INDEX IF NOT EXISTS idx_queue_status ON processing_queue(status);
-CREATE INDEX IF NOT EXISTS idx_queue_date ON processing_queue(year, month, date);
+CREATE INDEX IF NOT EXISTS idx_queue_date ON processing_queue(year, month, date, location);
 EOF
 echo -e "   ${GREEN}✓${NC} Created indexes"
 
