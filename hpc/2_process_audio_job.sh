@@ -12,6 +12,8 @@
 #SBATCH --output=/scratch/cohenr/logs/process_%j.out
 #SBATCH --error=/scratch/cohenr/error/process_%j.err
 
+module load singularityce
+
 # process_audio_job.sh - Updated for Singularity containers
 DATE_STR=$1
 
