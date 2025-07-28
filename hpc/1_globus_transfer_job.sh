@@ -1,12 +1,15 @@
 #!/bin/bash
 #SBATCH --job-name=transfer_%j
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=colin.henry@ipz.uzh.ch
 #SBATCH --partition=standard
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=06:00:00
-#SBATCH --output=/scratch/user/logs/transfer_%j.out
+#SBATCH --output=/scratch/cohenr/logs/transfer_%j.out
+#SBATCH --error=/scratch/cohenr/error/transfer_%j.err
 
 # globus_transfer_job.sh - Updated for Singularity containers
 DATE_STR=$1  # Format: YYYY-MM-DD

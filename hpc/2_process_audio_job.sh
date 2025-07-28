@@ -1,5 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=process_audio_%j
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=colin.henry@ipz.uzh.ch
 #SBATCH --partition=gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -7,7 +9,8 @@
 #SBATCH --gpus=h100:1
 #SBATCH --mem=256G
 #SBATCH --time=12:00:00
-#SBATCH --output=/scratch/user/logs/process_%j.out
+#SBATCH --output=/scratch/cohenr/logs/process_%j.out
+#SBATCH --error=/scratch/cohenr/error/process_%j.err
 
 # process_audio_job.sh - Updated for Singularity containers
 DATE_STR=$1
