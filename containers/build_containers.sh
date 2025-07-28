@@ -26,9 +26,8 @@ echo
 # Offer choice between regular and venv-based approach
 echo "   Choose build approach:"
 echo "   1) Standard build (audio_processing.def)"
-echo "   2) Virtual environment build (audio_processing_venv.def) - recommended for package conflicts"
-echo "   3) Skip audio processing container"
-read -p "   Select option (1/2/3): " -n 1 -r BUILD_CHOICE
+echo "   2) Skip audio processing container"
+read -p "   Select option (1/2): " -n 1 -r BUILD_CHOICE
 echo
 
 AUDIO_DEF="audio_processing.def"
@@ -40,17 +39,12 @@ case $BUILD_CHOICE in
         AUDIO_SIF="audio_processing.sif"
         ;;
     2)
-        AUDIO_DEF="audio_processing_venv.def"
-        AUDIO_SIF="audio_processing.sif"
-        echo "   Using virtual environment approach to avoid package conflicts"
-        ;;
-    3)
         echo "   Skipping audio processing container build"
         AUDIO_SIF=""
         ;;
     *)
         echo "   Invalid choice, defaulting to virtual environment build"
-        AUDIO_DEF="audio_processing_venv.def"
+        AUDIO_DEF="audio_processing.def"
         AUDIO_SIF="audio_processing.sif"
         ;;
 esac
@@ -92,9 +86,8 @@ echo
 # Offer choice between regular and venv-based approach
 echo "   Choose build approach:"
 echo "   1) Standard build (pipeline_utils.def)"
-echo "   2) Virtual environment build (pipeline_utils_venv.def) - recommended for package conflicts"
-echo "   3) Skip pipeline utilities container"
-read -p "   Select option (1/2/3): " -n 1 -r UTILS_BUILD_CHOICE
+echo "   2) Skip pipeline utilities container"
+read -p "   Select option (1/2): " -n 1 -r UTILS_BUILD_CHOICE
 echo
 
 UTILS_DEF="pipeline_utils.def"
@@ -106,17 +99,12 @@ case $UTILS_BUILD_CHOICE in
         UTILS_SIF="pipeline_utils.sif"
         ;;
     2)
-        UTILS_DEF="pipeline_utils_venv.def"
-        UTILS_SIF="pipeline_utils.sif"
-        echo "   Using virtual environment approach to avoid package conflicts"
-        ;;
-    3)
         echo "   Skipping pipeline utilities container build"
         UTILS_SIF=""
         ;;
     *)
         echo "   Invalid choice, defaulting to virtual environment build"
-        UTILS_DEF="pipeline_utils_venv.def"
+        UTILS_DEF="pipeline_utils.def"
         UTILS_SIF="pipeline_utils.sif"
         ;;
 esac
