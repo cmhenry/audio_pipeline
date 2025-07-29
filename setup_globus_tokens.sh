@@ -12,7 +12,7 @@ echo "This is a ONE-TIME setup process."
 echo
 
 # Run the token generation script inside the container
-singularity run \
+singularity exec \
     --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
     --bind ${HOME}:${HOME} \
     ${PIPELINE_UTILS_SIF} \
