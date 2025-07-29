@@ -54,7 +54,7 @@ class GlobusFlowManager:
         flows_authorizer = RefreshTokenAuthorizer(
             auth_refresh_token,
             auth_client,
-            scopes=["urn:globus:auth:scope:flows.globus.org:all"]
+            # scopes=["urn:globus:auth:scope:flows.globus.org:all"]
         )
         
         # Initialize SDK clients
