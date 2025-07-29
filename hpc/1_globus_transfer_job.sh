@@ -60,20 +60,15 @@ FILELIST="/tmp/globus_files_${DATE_STR}.txt"
 > "$FILELIST"
 
 # Generate list of expected files for this date
-# Files are in format: 0_YYYY-MM-DD_HH_MM.tar.xz and associated parquet files
-for hour in $(seq -f "%02g" 0 23); do
-    for minute in 00 10 20 30 40 50; do
-        # Add all file types for this timestamp
-        echo "${SOURCE_PATH}0_${DATE_STR}_${hour}_${minute}.tar.xz ${DEST_PATH}" >> "$FILELIST"
-        echo "${SOURCE_PATH}0_${DATE_STR}_${hour}_${minute}_comments.parquet ${DEST_PATH}" >> "$FILELIST"
-        echo "${SOURCE_PATH}0_${DATE_STR}_${hour}_${minute}_metadata.parquet ${DEST_PATH}" >> "$FILELIST"
-        echo "${SOURCE_PATH}0_${DATE_STR}_${hour}_${minute}_subtitles.parquet ${DEST_PATH}" >> "$FILELIST"
-    done
-done
+echo "Finding file list at ${SOURCE_ENDPOINT}"
+singularity exec ${PIPELINE_UTILS_SIF} \
+    globus ls \
+    "${SOURCE_ENDPOINT}":"${SOURCE_PATH}" \
+    | grep "${DATE_STR}" >> "$FILELIST"
+echo "File list found at ${SOURCE_ENDPOINT}"
 
 # Count expected files (144 timestamps * 4 files = 576 files per day)
-EXPECTED_FILES=576
-
+EXPECTED_FILES=$(wc -l < "$FILELIST")
 # Initiate batch transfer using file list
 echo "Transferring ${EXPECTED_FILES} files for ${DATE_STR} from ${FOLDER_NAME}"
 
@@ -85,6 +80,34 @@ TASK_ID=$(singularity exec ${PIPELINE_UTILS_SIF} \
     --label "Audio_${DATE_STR}" \
     --skip-source-errors \
     --format json | jq -r '.task_id')
+
+# TODO: Replace above chunk with Globus Flow
+# echo "Initiating transfer Flow for ${DATE_STR}"
+# # Call the Flow via API
+# FLOW_RESPONSE=$(curl -s -X POST \
+#     "https://flows.globus.org/v1/flows/YOUR_FLOW_ID/run" \
+#     -H "Authorization: Bearer $ACCESS_TOKEN" \
+#     -H "Content-Type: application/json" \
+#     -d '{
+#         "body": {
+#             "input": {
+#                 "date_str": "'$DATE_STR'",
+#                 "source_endpoint": "'$SOURCE_ENDPOINT'",
+#                 "dest_endpoint": "'$DEST_ENDPOINT'",
+#                 "source_path": "'$SOURCE_PATH'",
+#                 "dest_path": "'$DEST_PATH'", 
+#                 "transfer_label": "Audio_'$DATE_STR'"
+#             }
+#         }
+#     }')
+
+# # Extract Flow run ID
+# FLOW_RUN_ID=$(echo "$FLOW_RESPONSE" | jq -r '.run_id')
+# echo "Flow run started: $FLOW_RUN_ID"
+# # Optionally monitor the Flow
+# echo "Monitoring Flow execution..."
+# curl -s "https://flows.globus.org/v1/runs/$FLOW_RUN_ID" \
+#     -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.status'
 
 # Store task ID in database
 singularity run \
@@ -110,19 +133,6 @@ for i in $(seq 1 $MAX_CHECKS); do
         # Verify we got most files (allow some missing)
         if [ "$FILES_TRANSFERRED" -ge $((EXPECTED_FILES * 90 / 100)) ]; then
             echo "Transfer successful: $FILES_TRANSFERRED files transferred"
-            
-            # Update database
-            # psql "$DB_CREDS" -c "
-            #     UPDATE processing_queue 
-            #     SET status = 'ready_to_process',
-            #         transfer_end = NOW(),
-            #         error_message = CASE 
-            #             WHEN ${FILES_TRANSFERRED} < ${EXPECTED_FILES} 
-            #             THEN 'Partial transfer: ' || ${FILES_TRANSFERRED} || '/' || ${EXPECTED_FILES} || ' files'
-            #             ELSE NULL 
-            #         END
-            #     WHERE year = ${YEAR} AND month = ${MONTH}::int AND date = ${DAY}::int;
-            # "
             singularity run \
                 --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
                 ${PIPELINE_UTILS_SIF} \
@@ -133,12 +143,6 @@ for i in $(seq 1 $MAX_CHECKS); do
             exit 0
         else
             echo "Transfer incomplete: only $FILES_TRANSFERRED/$EXPECTED_FILES files"
-            # psql "$DB_CREDS" -c "
-            #     UPDATE processing_queue 
-            #     SET status = 'transfer_failed',
-            #         error_message = 'Insufficient files transferred: ' || ${FILES_TRANSFERRED} || '/' || ${EXPECTED_FILES}
-            #     WHERE year = ${YEAR} AND month = ${MONTH}::int AND date = ${DAY}::int;
-            # "
             singularity run \
                 --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
                 ${PIPELINE_UTILS_SIF} \
@@ -149,12 +153,6 @@ for i in $(seq 1 $MAX_CHECKS); do
     elif [ "$STATUS" = "FAILED" ]; then
         ERROR_MSG=$(echo "$TASK_INFO" | jq -r '.nice_status_details // .status')
         echo "Transfer failed: $ERROR_MSG"
-        # psql "$DB_CREDS" -c "
-        #     UPDATE processing_queue 
-        #     SET status = 'transfer_failed',
-        #         error_message = '${ERROR_MSG}'
-        #     WHERE year = ${YEAR} AND month = ${MONTH}::int AND date = ${DAY}::int;
-        # "
         singularity run \
             --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
             ${PIPELINE_UTILS_SIF} \
@@ -165,12 +163,6 @@ done
 
 # Timeout
 echo "Transfer timed out after ${MAX_CHECKS} checks"
-# psql "$DB_CREDS" -c "
-#     UPDATE processing_queue 
-#     SET status = 'transfer_failed',
-#         error_message = 'Transfer timeout'
-#     WHERE year = ${YEAR} AND month = ${MONTH}::int AND date = ${DAY}::int;
-# 
 singularity run \
     --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
     ${PIPELINE_UTILS_SIF} \
