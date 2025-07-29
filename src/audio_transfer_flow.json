@@ -47,9 +47,9 @@
       "Type": "Action", 
       "ActionUrl": "https://actions.globus.org/transfer/transfer",
       "Parameters": {
-        "source_endpoint_id.$": "$.input.source_endpoint",
-        "destination_endpoint_id.$": "$.input.dest_endpoint", 
-        "transfer_items.$": "$.transfer_items",
+        "source_endpoint.$": "$.input.source_endpoint",
+        "destination_endpoint.$": "$.input.dest_endpoint", 
+        "DATA.$": "$.transfer_items",
         "label.$": "$.input.transfer_label",
         "skip_source_errors": true,
         "verify_checksum": false,
