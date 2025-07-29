@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 from globus_sdk import FlowsClient, SpecificFlowClient, FlowsAPIError
-from globus_sdk import AccessTokenAuthorizer
+from globus_sdk import AccessTokenAuthorizer, ConfidentialAppAuthClient, ClientCredentialsAuthorizer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,20 +23,55 @@ logger = logging.getLogger(__name__)
 class GlobusFlowManager:
     """Manages Globus Flow operations for audio transfers using official SDK"""
     
-    def __init__(self, access_token: Optional[str] = None):
+    def __init__(self, access_token: Optional[str] = None, client_id: Optional[str] = None, client_secret: Optional[str] = None):
         """
         Initialize Globus Flow manager using official SDK
         
         Args:
             access_token: Globus access token (can also be set via GLOBUS_ACCESS_TOKEN env var)
+            client_id: Globus client ID for client credentials flow (can also be set via GLOBUS_CLIENT_ID env var)
+            client_secret: Globus client secret for client credentials flow (can also be set via GLOBUS_CLIENT_SECRET env var)
         """
+        # Try access token first (direct parameter or environment variable)
         self.access_token = access_token or os.getenv('GLOBUS_ACCESS_TOKEN')
-        if not self.access_token:
-            raise ValueError("Access token required. Set GLOBUS_ACCESS_TOKEN environment variable or pass as parameter")
+        
+        if self.access_token:
+            # Use provided access token
+            logger.info("Using provided access token for authentication")
+            authorizer = AccessTokenAuthorizer(self.access_token)
+        else:
+            # Fall back to client credentials flow
+            client_id = client_id or os.getenv('GLOBUS_CLIENT_ID')
+            client_secret = client_secret or os.getenv('GLOBUS_CLIENT_SECRET')
+            
+            if not client_id or not client_secret:
+                raise ValueError(
+                    "Authentication required. Provide either:\n"
+                    "1. Access token via GLOBUS_ACCESS_TOKEN env var or access_token parameter\n"
+                    "2. Client credentials via GLOBUS_CLIENT_ID and GLOBUS_CLIENT_SECRET env vars or client_id/client_secret parameters"
+                )
+            
+            logger.info("Using client credentials for authentication")
+            
+            # Create confidential app auth client
+            confidential_client = ConfidentialAppAuthClient(
+                client_id=client_id,
+                client_secret=client_secret
+            )
+            
+            # Create client credentials authorizer with Flows scope
+            flows_scope = "urn:globus:auth:scope:flows.globus.org:all"
+            authorizer = ClientCredentialsAuthorizer(
+                confidential_client,
+                flows_scope
+            )
+            
+            # Store for potential later use
+            self.access_token = None  # We don't have a direct token, using authorizer
         
         # Initialize SDK clients
-        authorizer = AccessTokenAuthorizer(self.access_token)
         self.flows_client = FlowsClient(authorizer=authorizer)
+        self.authorizer = authorizer  # Store for creating specific clients
         
         # Flow ID will be set after deployment
         self.flow_id = os.getenv('AUDIO_TRANSFER_FLOW_ID')
@@ -49,8 +84,7 @@ class GlobusFlowManager:
             raise ValueError("Flow ID not set. Deploy flow first or set AUDIO_TRANSFER_FLOW_ID environment variable")
         
         if not self._specific_client:
-            authorizer = AccessTokenAuthorizer(self.access_token)
-            self._specific_client = SpecificFlowClient(self.flow_id, authorizer=authorizer)
+            self._specific_client = SpecificFlowClient(self.flow_id, authorizer=self.authorizer)
         
         return self._specific_client
     
@@ -349,6 +383,8 @@ def main():
     """Command-line interface for Globus Flow operations"""
     parser = argparse.ArgumentParser(description='Globus Flow Manager for Audio Pipeline')
     parser.add_argument('--access-token', help='Globus access token (or set GLOBUS_ACCESS_TOKEN env var)')
+    parser.add_argument('--client-id', help='Globus client ID for client credentials flow (or set GLOBUS_CLIENT_ID env var)')
+    parser.add_argument('--client-secret', help='Globus client secret for client credentials flow (or set GLOBUS_CLIENT_SECRET env var)')
     
     subparsers = parser.add_subparsers(dest='command', help='Command to execute')
     
@@ -390,7 +426,11 @@ def main():
         sys.exit(1)
     
     try:
-        manager = GlobusFlowManager(args.access_token)
+        manager = GlobusFlowManager(
+            access_token=args.access_token,
+            client_id=args.client_id,
+            client_secret=args.client_secret
+        )
         
         if args.command == 'deploy':
             flow_id = manager.deploy_flow(args.flow_file, args.title)

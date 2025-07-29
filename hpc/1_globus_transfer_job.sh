@@ -59,6 +59,7 @@ singularity run \
 echo "Initiating transfer Flow for ${DATE_STR} from ${FOLDER_NAME}"
 
 # Run the Globus Flow for file discovery and transfer
+# Authentication will use GLOBUS_ACCESS_TOKEN or GLOBUS_CLIENT_ID/GLOBUS_CLIENT_SECRET env vars
 FLOW_RESULT=$(singularity run \
     --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
     ${PIPELINE_UTILS_SIF} \

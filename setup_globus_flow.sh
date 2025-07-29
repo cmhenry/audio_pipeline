@@ -27,22 +27,36 @@ if [ ! -f "$FLOW_DEF_FILE" ]; then
     exit 1
 fi
 
-# Check for access token
-if [ -z "$GLOBUS_ACCESS_TOKEN" ]; then
-    echo "Error: GLOBUS_ACCESS_TOKEN environment variable not set"
+# Check for authentication credentials
+if [ -z "$GLOBUS_ACCESS_TOKEN" ] && ([ -z "$GLOBUS_CLIENT_ID" ] || [ -z "$GLOBUS_CLIENT_SECRET" ]); then
+    echo "Error: Authentication credentials not configured"
     echo
-    echo "To get an access token:"
+    echo "Choose one of the following authentication methods:"
+    echo
+    echo "Option 1 - Access Token (for development/testing):"
     echo "1. Go to https://app.globus.org/settings/developers"
     echo "2. Create a new app or use existing one"
-    echo "3. Generate an access token with Transfer and Flow scopes"
+    echo "3. Generate an access token with Flows scope"
     echo "4. Export the token: export GLOBUS_ACCESS_TOKEN=your_token_here"
+    echo
+    echo "Option 2 - Client Credentials (for production/automation):"
+    echo "1. Go to https://app.globus.org/settings/developers"
+    echo "2. Create a confidential app (not native app)"
+    echo "3. Generate client credentials with Flows scope"
+    echo "4. Export credentials:"
+    echo "   export GLOBUS_CLIENT_ID=your_client_id"
+    echo "   export GLOBUS_CLIENT_SECRET=your_client_secret"
     echo
     exit 1
 fi
 
 echo "✓ Container found: $PIPELINE_UTILS_SIF"
 echo "✓ Flow definition found: $FLOW_DEF_FILE"
-echo "✓ Access token configured"
+if [ -n "$GLOBUS_ACCESS_TOKEN" ]; then
+    echo "✓ Access token authentication configured"
+elif [ -n "$GLOBUS_CLIENT_ID" ] && [ -n "$GLOBUS_CLIENT_SECRET" ]; then
+    echo "✓ Client credentials authentication configured"
+fi
 echo
 
 # Deploy the flow
