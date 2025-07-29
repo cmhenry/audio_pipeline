@@ -31,7 +31,7 @@ class GlobusFlowManager:
         if not self.access_token:
             raise ValueError("Access token required. Set GLOBUS_ACCESS_TOKEN environment variable or pass as parameter")
         
-        self.base_url = "https://flows.globus.org/v1"
+        self.base_url = "https://flows.globus.org/"
         self.headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json"
