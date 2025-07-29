@@ -77,9 +77,10 @@ class GlobusFlowManager:
                 title=title,
                 definition=flow_definition,
                 input_schema=input_schema,
-                description="Automated file discovery, filtering, and transfer for TikTok audio pipeline",
-                keywords=["audio", "pipeline", "transfer", "tiktok"],
-                runnable_by=["all_authenticated_users"]
+                description="Automated file discovery, filtering, and transfer for audio pipeline",
+                keywords=["audio", "pipeline", "transfer"],
+                flow_viewers=['public'],
+                flow_starters=['all_authenticated_users']
             )
             
             flow_id = response['id']
