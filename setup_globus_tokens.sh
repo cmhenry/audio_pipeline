@@ -12,11 +12,10 @@ echo "This is a ONE-TIME setup process."
 echo
 
 # Run the token generation script inside the container
-singularity exec \
+singularity run \
     --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
-    --bind ${HOME}:${HOME} \
     ${PIPELINE_UTILS_SIF} \
-    python /opt/audio_pipeline/src/generate_globus_tokens.py
+    /opt/audio_pipeline/src/generate_globus_tokens.py
 
 # Check if token file was created
 if [ -f "${HOME}/.globus_refresh_tokens.json" ]; then
