@@ -55,59 +55,48 @@ singularity run \
     ${PIPELINE_UTILS_SIF} \
     /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" transferring
 
-# Create a file list for all files from this specific date
-FILELIST="/tmp/globus_files_${DATE_STR}.txt"
-> "$FILELIST"
+# Initiate transfer using Globus Flow
+echo "Initiating transfer Flow for ${DATE_STR} from ${FOLDER_NAME}"
 
-# Generate list of expected files for this date
-echo "Finding file list at ${SOURCE_ENDPOINT}"
-singularity exec ${PIPELINE_UTILS_SIF} \
-    globus ls \
-    "${SOURCE_ENDPOINT}":"${SOURCE_PATH}" \
-    | grep "${DATE_STR}" >> "$FILELIST"
-echo "File list found at ${SOURCE_ENDPOINT}"
-
-# Count expected files (144 timestamps * 4 files = 576 files per day)
-EXPECTED_FILES=$(wc -l < "$FILELIST")
-# Initiate batch transfer using file list
-echo "Transferring ${EXPECTED_FILES} files for ${DATE_STR} from ${FOLDER_NAME}"
-
-TASK_ID=$(singularity exec ${PIPELINE_UTILS_SIF} \
-    globus transfer \
-    "${SOURCE_ENDPOINT}" \
-    "${DEST_ENDPOINT}" \
-    --batch < "$FILELIST" \
+# Run the Globus Flow for file discovery and transfer
+FLOW_RESULT=$(singularity run \
+    --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
+    ${PIPELINE_UTILS_SIF} \
+    /opt/audio_pipeline/src/globus_flow_manager.py run \
+    --date "$DATE_STR" \
+    --source-endpoint "$SOURCE_ENDPOINT" \
+    --dest-endpoint "$DEST_ENDPOINT" \
+    --source-path "$SOURCE_PATH" \
+    --dest-path "$DEST_PATH" \
     --label "Audio_${DATE_STR}" \
-    --skip-source-errors \
-    --format json | jq -r '.task_id')
+    --monitor)
 
-# TODO: Replace above chunk with Globus Flow
-# echo "Initiating transfer Flow for ${DATE_STR}"
-# # Call the Flow via API
-# FLOW_RESPONSE=$(curl -s -X POST \
-#     "https://flows.globus.org/v1/flows/YOUR_FLOW_ID/run" \
-#     -H "Authorization: Bearer $ACCESS_TOKEN" \
-#     -H "Content-Type: application/json" \
-#     -d '{
-#         "body": {
-#             "input": {
-#                 "date_str": "'$DATE_STR'",
-#                 "source_endpoint": "'$SOURCE_ENDPOINT'",
-#                 "dest_endpoint": "'$DEST_ENDPOINT'",
-#                 "source_path": "'$SOURCE_PATH'",
-#                 "dest_path": "'$DEST_PATH'", 
-#                 "transfer_label": "Audio_'$DATE_STR'"
-#             }
-#         }
-#     }')
-
-# # Extract Flow run ID
-# FLOW_RUN_ID=$(echo "$FLOW_RESPONSE" | jq -r '.run_id')
-# echo "Flow run started: $FLOW_RUN_ID"
-# # Optionally monitor the Flow
-# echo "Monitoring Flow execution..."
-# curl -s "https://flows.globus.org/v1/runs/$FLOW_RUN_ID" \
-#     -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.status'
+# Check if Flow run was successful
+if [ $? -eq 0 ]; then
+    # Extract task ID from Flow result (Flow manager prints task_id in result)
+    TASK_ID=$(echo "$FLOW_RESULT" | grep -o '"task_id": "[^"]*"' | cut -d'"' -f4)
+    EXPECTED_FILES=$(echo "$FLOW_RESULT" | grep -o '"files_found": [0-9]*' | cut -d':' -f2 | tr -d ' ')
+    
+    if [ -z "$TASK_ID" ]; then
+        echo "Error: Could not extract task ID from Flow result"
+        echo "Flow result: $FLOW_RESULT"
+        singularity run \
+            --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
+            ${PIPELINE_UTILS_SIF} \
+            /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" transfer_failed --error "Flow completed but no task ID found"
+        exit 1
+    fi
+    
+    echo "Flow completed successfully. Transfer task ID: $TASK_ID, Files found: $EXPECTED_FILES"
+else
+    echo "Flow execution failed"
+    echo "Flow output: $FLOW_RESULT"
+    singularity run \
+        --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
+        ${PIPELINE_UTILS_SIF} \
+        /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" transfer_failed --error "Globus Flow execution failed"
+    exit 1
+fi
 
 # Store task ID in database
 singularity run \

@@ -86,6 +86,28 @@ singularity run --bind ./src:/opt/audio_pipeline/src containers/pipeline_utils.s
 python -c "from storage_manager import create_storage_manager; sm = create_storage_manager('VM_IP'); print('Storage ready')"
 ```
 
+### Globus Flow Setup
+```bash
+# Deploy Globus Flow for automated transfers
+export GLOBUS_ACCESS_TOKEN=your_access_token_here
+./setup_globus_flow.sh
+
+# Test Flow manually (after deployment)
+export AUDIO_TRANSFER_FLOW_ID=your_flow_id_here
+singularity run --bind ./src:/opt/audio_pipeline/src containers/pipeline_utils.sif \
+    /opt/audio_pipeline/src/globus_flow_manager.py run \
+    --date 2025-01-25 \
+    --source-endpoint SOURCE_ID \
+    --dest-endpoint DEST_ID \
+    --source-path /source/path/ \
+    --dest-path /dest/path/ \
+    --monitor
+
+# Check Flow status
+singularity run --bind ./src:/opt/audio_pipeline/src containers/pipeline_utils.sif \
+    /opt/audio_pipeline/src/globus_flow_manager.py status FLOW_RUN_ID
+```
+
 ### Processing Queue Management
 ```bash
 # Load test queue (5 days starting Jan 25th) - containerized

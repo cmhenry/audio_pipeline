@@ -1,0 +1,73 @@
+{
+  "Comment": "Audio Pipeline Transfer Flow - File discovery, filtering, and transfer",
+  "StartAt": "FileDiscovery",
+  "States": {
+    "FileDiscovery": {
+      "Type": "Action",
+      "ActionUrl": "https://actions.globus.org/transfer/ls",
+      "Parameters": {
+        "endpoint_id.$": "$.input.source_endpoint",
+        "path.$": "$.input.source_path",
+        "show_hidden": false,
+        "orderby": "name",
+        "limit": 10000
+      },
+      "ResultPath": "$.file_list_result",
+      "Next": "PrepareTransferItems"
+    },
+    "PrepareTransferItems": {
+      "Type": "ExpressionEval",
+      "Parameters": {
+        "expression": "[{'source_path': $.input.source_path + f['name'], 'destination_path': $.input.dest_path + f['name'], 'recursive': False} for f in $.file_list_result.DATA if $.input.date_str in f['name'] and (f['name'].endswith('.tar.xz') or f['name'].endswith('.parquet'))]"
+      },
+      "ResultPath": "$.transfer_items",
+      "Next": "CheckTransferItems"
+    },
+    "CheckTransferItems": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.transfer_items",
+          "StringEquals": "[]",
+          "Next": "NoFilesFound"
+        }
+      ],
+      "Default": "InitiateTransfer"
+    },
+    "NoFilesFound": {
+      "Type": "Pass",
+      "Result": {
+        "status": "FAILED",
+        "details": "No files found for the specified date",
+        "files_found": 0
+      },
+      "End": true
+    },
+    "InitiateTransfer": {
+      "Type": "Action", 
+      "ActionUrl": "https://actions.globus.org/transfer/transfer",
+      "Parameters": {
+        "source_endpoint_id.$": "$.input.source_endpoint",
+        "destination_endpoint_id.$": "$.input.dest_endpoint", 
+        "transfer_items.$": "$.transfer_items",
+        "label.$": "$.input.transfer_label",
+        "skip_source_errors": true,
+        "verify_checksum": false,
+        "preserve_timestamp": true,
+        "delete_destination_extra": false
+      },
+      "ResultPath": "$.transfer_result",
+      "Next": "FormatResult"
+    },
+    "FormatResult": {
+      "Type": "Pass",
+      "Parameters": {
+        "status": "SUCCESS",
+        "task_id.$": "$.transfer_result.task_id",
+        "files_found.$": "$.transfer_items[*]",
+        "details": "Transfer initiated successfully"
+      },
+      "End": true
+    }
+  }
+}
