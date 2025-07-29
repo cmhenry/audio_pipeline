@@ -61,7 +61,6 @@ class GlobusFlowManager:
                 "description": "Automated file discovery, filtering, and transfer for TikTok audio pipeline",
                 "keywords": ["audio", "pipeline", "transfer", "tiktok"],
                 "visible_to": ["public"],
-                "administrated_by": [],
                 "runnable_by": ["all_authenticated_users"]
             }
             
