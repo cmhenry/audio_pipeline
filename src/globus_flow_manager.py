@@ -79,7 +79,6 @@ class GlobusFlowManager:
                 input_schema=input_schema,
                 description="Automated file discovery, filtering, and transfer for TikTok audio pipeline",
                 keywords=["audio", "pipeline", "transfer", "tiktok"],
-                visible_to=["public"],
                 runnable_by=["all_authenticated_users"]
             )
             
