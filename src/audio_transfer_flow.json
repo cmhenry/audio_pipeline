@@ -4,7 +4,7 @@
   "States": {
     "FileDiscovery": {
       "Type": "Action",
-      "ActionUrl": "https://actions.globus.org/transfer/ls",
+      "ActionUrl": "https://transfer.globus.org/ls",
       "Parameters": {
         "endpoint_id.$": "$.input.source_endpoint",
         "path.$": "$.input.source_path",
@@ -45,7 +45,7 @@
     },
     "InitiateTransfer": {
       "Type": "Action", 
-      "ActionUrl": "https://actions.globus.org/transfer/transfer",
+      "ActionUrl": "https://transfer.globus.org/transfer",
       "Parameters": {
         "source_endpoint.$": "$.input.source_endpoint",
         "destination_endpoint.$": "$.input.dest_endpoint", 
