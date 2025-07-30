@@ -1,22 +1,35 @@
 {
   "Comment": "Audio Pipeline Transfer Flow - File discovery, filtering, and transfer",
-  "StartAt": "FileDiscovery",
+  "StartAt": "DiscoverTarFiles",
   "States": {
-    "FileDiscovery": {
+    "DiscoverTarFiles": {
       "Type": "Action",
       "ActionUrl": "https://transfer.actions.globus.org/ls",
       "Parameters": {
         "endpoint_id.$": "$.source_endpoint",
         "path.$": "$.source_path",
-        "limit": 10000
+        "filter": "name:~*.tar.xz",
+        "limit": 5000
       },
-      "ResultPath": "$.discovered_files",
-      "Next": "PrepareTransferItems"
+      "ResultPath": "$.tar_files",
+      "Next": "DiscoverParquetFiles"
     },
-    "PrepareTransferItems": {
+    "DiscoverParquetFiles": {
+      "Type": "Action",
+      "ActionUrl": "https://transfer.actions.globus.org/ls",
+      "Parameters": {
+        "endpoint_id.$": "$.source_endpoint",
+        "path.$": "$.source_path",
+        "filter": "name:~*.parquet",
+        "limit": 5000
+      },
+      "ResultPath": "$.parquet_files",
+      "Next": "FilterAndCombine"
+    },
+    "FilterAndCombine": {
       "Type": "ExpressionEval",
       "Parameters": {
-        "transfer_DATA.=": "[{'source_path': source_path + f.name, 'destination_path': dest_path + f.name} for f in discovered_files.details.DATA if date_str in f.name]"
+        "transfer_DATA.=": "[{'source_path': source_path + f.name, 'destination_path': dest_path + f.name} for f in parquet_files.details.DATA + tar_files.details.DATA if date_str in f.name]"
       },
       "ResultPath": "$.transfer_items",
       "Next": "CheckTransferItems"
