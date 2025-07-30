@@ -53,13 +53,13 @@ class GlobusFlowManager:
             )
         
         # Create native app auth client
-        auth_client = NativeAppAuthClient(client_id)
+        self.auth_client = NativeAppAuthClient(client_id)
         
         # Create refresh token authorizer for Flows API
         # Flows uses the auth.globus.org refresh token with flows scope
         flows_authorizer = RefreshTokenAuthorizer(
             flows_refresh_token,
-            auth_client,
+            self.auth_client,
             # scopes=["urn:globus:auth:scope:flows.globus.org:all"]
         )
         
