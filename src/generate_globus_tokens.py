@@ -4,7 +4,7 @@
 import json
 import os
 from globus_sdk import NativeAppAuthClient
-from globus_sdk.scopes import TransferScopes
+from globus_sdk.scopes import TransferScopes, GCSCollectionScopeBuilder
 
 # Replace with your Client ID from the Native App registration
 CLIENT_ID = "caac995b-9dd6-4e1d-b150-d36581a70de9"
@@ -14,10 +14,21 @@ def get_and_save_tokens():
     
     # Create native app client
     client = NativeAppAuthClient(CLIENT_ID)
+
+    # BUILD SCOPES
+    SOURCE_ENDPOINT="7f1a1170-3e31-4241-864e-e504e736c7b8"
+    DEST_ENDPOINT="5f01d3f8-0697-11e8-a6c0-0a448319c2f8"
+    transfer_scope = TransferScopes.make_mutable("all")
+    for coll in (SOURCE_ENDPOINT, DEST_ENDPOINT):
+        transfer_scope.add_dependency(
+            GCSCollectionScopeBuilder(coll).data_access,
+            optional=False
+        )
     
     # Start OAuth2 flow with refresh tokens
     client.oauth2_start_flow(
         requested_scopes=[
+            transfer_scope,
             "urn:globus:auth:scope:transfer.api.globus.org:all",
             "https://auth.globus.org/scopes/bbe2c78f-b7e4-490c-99de-f2b49b6cbb42/flow_bbe2c78f_b7e4_490c_99de_f2b49b6cbb42_user",
             "https://auth.globus.org/scopes/eec9b274-0c81-4334-bdc2-54e90e689b9a/manage_flows",
