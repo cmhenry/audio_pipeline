@@ -8,8 +8,7 @@
       "Parameters": {
         "endpoint_id.$": "$.source_endpoint",
         "path.$": "$.source_path",
-        "filter": "name:$.date_str*",
-        "limit": 1000
+        "limit": 10000
       },
       "ResultPath": "$.discovered_files",
       "Next": "PrepareTransferItems"
@@ -17,7 +16,7 @@
     "PrepareTransferItems": {
       "Type": "ExpressionEval",
       "Parameters": {
-        "transfer_DATA.=": "[{'source_path': source_path + f.name, 'destination_path': dest_path + f.name} for f in discovered_files.details.DATA]"
+        "transfer_DATA.=": "[{'source_path': source_path + f.name, 'destination_path': dest_path + f.name} for f in discovered_files.details.DATA if date_str in f.name]"
       },
       "ResultPath": "$.transfer_items",
       "Next": "CheckTransferItems"
