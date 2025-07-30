@@ -44,12 +44,24 @@ def get_and_save_tokens():
     # Exchange for tokens
     token_response = client.oauth2_exchange_code_for_tokens(auth_code)
     
-    # Extract refresh tokens (these last "forever")
+    # Extract refresh tokens
     tokens = {
         "CLIENT_ID": CLIENT_ID,
         "TRANSFER_REFRESH_TOKEN": token_response.by_resource_server['transfer.api.globus.org']['refresh_token'],
         "AUTH_REFRESH_TOKEN": token_response.by_resource_server['auth.globus.org']['refresh_token']
     }
+
+    # The Flows tokens might be under a different resource server key
+    if 'flows.globus.org' in token_response.by_resource_server:
+        tokens["FLOWS_REFRESH_TOKEN"] = token_response.by_resource_server['flows.globus.org']['refresh_token']
+    elif 'eec9b274-0c81-4334-bdc2-54e90e689b9a' in token_response.by_resource_server:
+        # Sometimes it's under the service UUID
+        tokens["FLOWS_REFRESH_TOKEN"] = token_response.by_resource_server['eec9b274-0c81-4334-bdc2-54e90e689b9a']['refresh_token']
+
+    # Debug: print all resource servers to see what we got
+    print("\nResource servers in response:")
+    for server in token_response.by_resource_server.keys():
+        print(f"  - {server}")
     
     # Save to file
     token_file = os.path.expanduser("~/.globus_refresh_tokens.json")
