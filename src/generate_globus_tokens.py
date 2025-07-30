@@ -54,6 +54,7 @@ def get_and_save_tokens():
     tokens = {
         "CLIENT_ID": CLIENT_ID,
         "TRANSFER_REFRESH_TOKEN": token_response.by_resource_server['transfer.api.globus.org']['refresh_token'],
+        "TRANSFER_ACCESS_TOKEN": token_response.by_resource_server['transfer.api.globus.org']['access_token'],
         "AUTH_REFRESH_TOKEN": token_response.by_resource_server['auth.globus.org']['refresh_token']
     }
 

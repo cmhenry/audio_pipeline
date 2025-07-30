@@ -81,7 +81,7 @@ class GlobusTransferManager:
         
         try:
             # Try to list with date filter first
-            filter_str = f"name:~0_{date_str}*"
+            filter_str = f"name:0_{date_str}*"
             logger.info(f"Listing files with filter: {filter_str}")
             
             ls_result = self.transfer_client.operation_ls(
