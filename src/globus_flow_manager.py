@@ -44,7 +44,12 @@ class GlobusFlowManager:
         
         # Extract tokens
         client_id = tokens['CLIENT_ID']
-        auth_refresh_token = tokens['AUTH_REFRESH_TOKEN']
+        flows_refresh_token = tokens['FLOWS_REFRESH_TOKEN']
+        if not flows_refresh_token:
+            raise ValueError(
+                "No FLOWS_REFRESH_TOKEN found in token file.\n"
+                "Please regenerate tokens with Flows API scope."
+            )
         
         # Create native app auth client
         auth_client = NativeAppAuthClient(client_id)
@@ -52,7 +57,7 @@ class GlobusFlowManager:
         # Create refresh token authorizer for Flows API
         # Flows uses the auth.globus.org refresh token with flows scope
         flows_authorizer = RefreshTokenAuthorizer(
-            auth_refresh_token,
+            flows_refresh_token,
             auth_client,
             # scopes=["urn:globus:auth:scope:flows.globus.org:all"]
         )
