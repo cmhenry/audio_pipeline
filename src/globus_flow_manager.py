@@ -108,19 +108,7 @@ class GlobusTransferManager:
                 )
             else:
                 # If filter fails, try without filter and filter manually
-                logger.warning(f"Filter failed, trying without filter: {e}")
-                
-                ls_result = self.transfer_client.operation_ls(
-                    endpoint_id,
-                    path=path
-                )
-                
-                for item in ls_result:
-                    if (item['type'] == 'file' and 
-                        date_str in item['name'] and
-                        (item['name'].endswith('.tar.xz') or 
-                        item['name'].endswith('.parquet'))):
-                        filtered_files.append(item)
+                logger.error(f"Filter failed: {e}")
                     
         logger.info(f"Found {len(filtered_files)} files for {date_str}")
         return filtered_files
