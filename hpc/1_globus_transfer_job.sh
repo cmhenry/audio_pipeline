@@ -43,7 +43,7 @@ echo "Processing folder: ${FOLDER_NAME}"
 # Set up paths
 SOURCE_ENDPOINT="7f1a1170-3e31-4241-864e-e504e736c7b8"
 DEST_ENDPOINT="5f01d3f8-0697-11e8-a6c0-0a448319c2f8"
-SOURCE_PATH="/scratch/olympus/tiktok_external_transfer/${FOLDER_NAME}/prepped_files/"
+SOURCE_PATH="/scratch/olympus/tiktok_external_transfer/${FOLDER_NAME}/prepped_data/"
 DEST_PATH="/shares/bdm.ipz.uzh/audio_pipeline/staging/${DATE_STR}/"
 
 # Create destination directory

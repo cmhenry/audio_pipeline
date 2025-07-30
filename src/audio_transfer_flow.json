@@ -6,8 +6,8 @@
       "Type": "Action",
       "ActionUrl": "https://transfer.actions.globus.org/ls",
       "Parameters": {
-        "endpoint_id.$": "$.input.source_endpoint",
-        "path.$": "$.input.source_path",
+        "endpoint_id.$": "$.source_endpoint",
+        "path.$": "$.source_path",
         "show_hidden": false,
         "orderby": "name",
         "limit": 10000
@@ -18,7 +18,7 @@
     "PrepareTransferItems": {
       "Type": "ExpressionEval",
       "Parameters": {
-        "expression": "[{'source_path': $.input.source_path + f['name'], 'destination_path': $.input.dest_path + f['name'], 'recursive': False} for f in $.file_list_result.DATA if $.input.date_str in f['name'] and (f['name'].endswith('.tar.xz') or f['name'].endswith('.parquet'))]"
+        "expression": "[{'source_path': $.source_path + f['name'], 'destination_path': $.dest_path + f['name'], 'recursive': False} for f in $.file_list_result.DATA if $.date_str in f['name'] and (f['name'].endswith('.tar.xz') or f['name'].endswith('.parquet'))]"
       },
       "ResultPath": "$.transfer_items",
       "Next": "CheckTransferItems"
@@ -47,10 +47,10 @@
       "Type": "Action", 
       "ActionUrl": "https://transfer.actions.globus.org/transfer",
       "Parameters": {
-        "source_endpoint.$": "$.input.source_endpoint",
-        "destination_endpoint.$": "$.input.dest_endpoint", 
+        "source_endpoint.$": "$.source_endpoint",
+        "destination_endpoint.$": "$.dest_endpoint", 
         "DATA.$": "$.transfer_items",
-        "label.$": "$.input.transfer_label",
+        "label.$": "$.transfer_label",
         "skip_source_errors": true,
         "verify_checksum": false,
         "preserve_timestamp": true,
