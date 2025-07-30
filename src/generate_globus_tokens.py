@@ -18,6 +18,7 @@ def get_and_save_tokens():
     client.oauth2_start_flow(
         requested_scopes=[
             "urn:globus:auth:scope:transfer.api.globus.org:all",
+            "urn:globus:auth:scope:flows.globus.org:all",
             "openid", 
             "profile"
         ],
