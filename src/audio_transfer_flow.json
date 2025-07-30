@@ -8,17 +8,16 @@
       "Parameters": {
         "endpoint_id.$": "$.source_endpoint",
         "path.$": "$.source_path",
-        "show_hidden": false,
-        "orderby": "name",
-        "limit": 10000
+        "filter": "name:$.date_str*",
+        "limit": 1000
       },
-      "ResultPath": "$.file_list_result",
+      "ResultPath": "$.discovered_files",
       "Next": "PrepareTransferItems"
     },
     "PrepareTransferItems": {
       "Type": "ExpressionEval",
       "Parameters": {
-        "expression": "[{'source_path': $.source_path + f['name'], 'destination_path': $.dest_path + f['name'], 'recursive': False} for f in $.file_list_result.DATA if $.date_str in f['name'] and (f['name'].endswith('.tar.xz') or f['name'].endswith('.parquet'))]"
+        "transfer_DATA.=": "[{'source_path': source_path + f.name, 'destination_path': dest_path + f.name} for f in discovered_files.details.DATA]"
       },
       "ResultPath": "$.transfer_items",
       "Next": "CheckTransferItems"
@@ -49,7 +48,7 @@
       "Parameters": {
         "source_endpoint.$": "$.source_endpoint",
         "destination_endpoint.$": "$.dest_endpoint", 
-        "DATA.$": "$.transfer_items",
+        "DATA.$": "$.transfer_items.transfer_DATA",
         "label.$": "$.transfer_label",
         "skip_source_errors": true,
         "verify_checksum": false,

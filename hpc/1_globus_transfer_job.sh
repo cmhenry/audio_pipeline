@@ -46,6 +46,8 @@ DEST_ENDPOINT="5f01d3f8-0697-11e8-a6c0-0a448319c2f8"
 SOURCE_PATH="/scratch/olympus/tiktok_external_transfer/${FOLDER_NAME}/prepped_data/"
 DEST_PATH="/shares/bdm.ipz.uzh/audio_pipeline/staging/${DATE_STR}/"
 
+echo "Found folder: ${SOURCE_PATH}"
+
 # Create destination directory
 mkdir -p "$(dirname $DEST_PATH)"
 
