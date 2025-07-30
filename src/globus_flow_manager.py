@@ -173,7 +173,12 @@ class GlobusFlowManager:
             source_path += '/'
         if not dest_path.endswith('/'):
             dest_path += '/'
-        
+        # DEBUG
+        print("date_str: " + date_str)
+        print("source_endpoint: " + source_endpoint)
+        print("dest_endpoint: " + dest_endpoint)
+        print("source_path: " + source_path)
+        print("dest_path: " + dest_path)
         flow_input = {
             "date_str": date_str,
             "source_endpoint": source_endpoint,
@@ -186,7 +191,7 @@ class GlobusFlowManager:
         try:
             # Run flow using SDK
             response = self.specific_client.run_flow(
-                body={"input": flow_input},
+                body=flow_input,
                 label=f"Audio Pipeline - {date_str}",
                 tags=["audio", "pipeline", date_str]
             )
