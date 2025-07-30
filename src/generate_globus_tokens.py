@@ -23,6 +23,7 @@ def get_and_save_tokens():
             "https://auth.globus.org/scopes/eec9b274-0c81-4334-bdc2-54e90e689b9a/all",
             "https://auth.globus.org/scopes/eec9b274-0c81-4334-bdc2-54e90e689b9a/run_status",
             "https://auth.globus.org/scopes/eec9b274-0c81-4334-bdc2-54e90e689b9a/run_manage",
+            "https://auth.globus.org/scopes/7f1a1170-3e31-4241-864e-e504e736c7b8/data_access",
             "openid", 
             "profile"
         ],
