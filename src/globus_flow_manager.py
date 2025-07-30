@@ -197,11 +197,21 @@ class GlobusTransferManager:
             return result
             
         except Exception as e:
-            logger.error(f"Error during transfer: {e}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            if e.info.consent_required:
+                logger.error(
+                    "Got a ConsentRequired error with scopes:",
+                    e.info.consent_required.required_scopes,
+                )
+                return {
+                    'success': False,
+                    'error': str(e)
+                }
+            else:
+                logger.error(f"Error during transfer: {e}")
+                return {
+                    'success': False,
+                    'error': str(e)
+                }
     
     def monitor_transfer(self, task_id: str, max_wait: int = 600, check_interval: int = 30) -> Dict[str, Any]:
         """
