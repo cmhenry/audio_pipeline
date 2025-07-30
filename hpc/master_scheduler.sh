@@ -8,6 +8,7 @@ CONTAINER_DIR="/data/cohenr/audio_pipeline/containers"
 PIPELINE_UTILS_SIF="${CONTAINER_DIR}/pipeline_utils.sif"
 
 SCRIPT_DIR="/data/cohenr/audio_pipeline/src"
+PIPELINE_DIR="/data/cohenr/audio_pipeline/hpc"
 WORK_DIR="/shares/bdm.ipz.uzh/audio_pipeline"
 DB_CREDS="host=172.23.76.3 port=5432 dbname=audio_pipeline user=audio_user password=audio_password"
 export DB_CREDS
@@ -43,6 +44,6 @@ for DAY in $DAYS_TO_PROCESS; do
     # Check if transfer job already exists
     if ! python ${SCRIPT_DIR}/db_utils.py --db-string "$DB_CREDS" check-job "$DAY"; then
         # Submit Globus transfer job
-        sbatch "${SCRIPT_DIR}/globus_transfer_job.sh" "$DAY"
+        sbatch "${PIPELINE_DIR}/globus_transfer_job.sh" "$DAY"
     fi
 done

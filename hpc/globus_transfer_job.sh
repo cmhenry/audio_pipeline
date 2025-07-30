@@ -27,6 +27,7 @@ export DB_CREDS
 CONTAINER_DIR="/data/cohenr/audio_pipeline/containers"
 PIPELINE_UTILS_SIF="${CONTAINER_DIR}/pipeline_utils.sif"
 SCRIPT_DIR="/data/cohenr/audio_pipeline/src"
+PIPELINE_DIR="/data/cohenr/audio_pipeline/hpc"
 
 # Convert month number to name (e.g., 01 -> january)
 MONTH_NAME=$(date -d "${YEAR}-${MONTH}-01" +%B | tr '[:upper:]' '[:lower:]')
@@ -131,7 +132,7 @@ for i in $(seq 1 $MAX_CHECKS); do
                 /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" ready_to_process
             
             # Submit processing job
-            sbatch "${SCRIPT_DIR}/process_audio_job.sh" "$DATE_STR"
+            sbatch "${PIPELINE_DIR}/process_audio_job.sh" "$DATE_STR"
             exit 0
         else
             echo "Transfer incomplete: only $FILES_TRANSFERRED/$EXPECTED_FILES files"
