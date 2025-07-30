@@ -80,23 +80,25 @@ class GlobusTransferManager:
         filtered_files = []
         
         try:
-            # Try to list with date filter first
-            filter_str = f"name:0_{date_str}*"
-            logger.info(f"Listing files with filter: {filter_str}")
             
             ls_result = self.transfer_client.operation_ls(
                 endpoint_id,
-                path=path,
-                filter=filter_str
+                path=path
             )
             
-            # Filter for .tar.xz and .parquet files
+            # Filter for date
+            logger.info(f"Fitlering for {date_str}")
             for item in ls_result:
-                if item['type'] == 'file' and (
-                    item['name'].endswith('.tar.xz') or 
-                    item['name'].endswith('.parquet')
-                ):
+                if item['name'].contains(date_str):
                     filtered_files.append(item)
+
+            # Filter for .tar.xz and .parquet files
+            # for item in ls_result:
+            #     if item['type'] == 'file' and (
+            #         item['name'].endswith('.tar.xz') or 
+            #         item['name'].endswith('.parquet')
+            #     ):
+            #         filtered_files.append(item)
                     
         except Exception as e:
             if e.info.consent_required:
