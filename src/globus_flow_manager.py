@@ -62,7 +62,7 @@ class GlobusFlowManager:
         self.authorizer = flows_authorizer  # Store for creating specific clients
         
         # Flow ID will be set after deployment
-        self.flow_id = os.getenv('AUDIO_TRANSFER_FLOW_ID')
+        self.flow_id = "bbe2c78f-b7e4-490c-99de-f2b49b6cbb42"
         self._specific_client = None
         
         logger.info("Initialized Globus Flow Manager with refresh tokens")
