@@ -87,7 +87,7 @@ class GlobusTransferManager:
             )
             
             # Filter for date
-            logger.info(f"Fitlering for {date_str}")
+            logger.info(f"Filtering for {date_str}")
             for item in ls_result:
                 if item['name'].contains(date_str):
                     filtered_files.append(item)
@@ -101,14 +101,7 @@ class GlobusTransferManager:
             #         filtered_files.append(item)
                     
         except Exception as e:
-            if e.info.consent_required:
-                logger.error(
-                    "Got a ConsentRequired error with scopes:",
-                    e.info.consent_required.required_scopes,
-                )
-            else:
-                # If filter fails, try without filter and filter manually
-                logger.error(f"Filter failed: {e}")
+            logger.error(f"Filter failed: {e}")
                     
         logger.info(f"Found {len(filtered_files)} files for {date_str}")
         return filtered_files
