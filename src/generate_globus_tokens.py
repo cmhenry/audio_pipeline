@@ -21,6 +21,8 @@ def get_and_save_tokens():
             "https://auth.globus.org/scopes/bbe2c78f-b7e4-490c-99de-f2b49b6cbb42/flow_bbe2c78f_b7e4_490c_99de_f2b49b6cbb42_user",
             "https://auth.globus.org/scopes/eec9b274-0c81-4334-bdc2-54e90e689b9a/manage_flows",
             "https://auth.globus.org/scopes/eec9b274-0c81-4334-bdc2-54e90e689b9a/all",
+            "https://auth.globus.org/scopes/eec9b274-0c81-4334-bdc2-54e90e689b9a/run_status",
+            "https://auth.globus.org/scopes/eec9b274-0c81-4334-bdc2-54e90e689b9a/run_manage",
             "openid", 
             "profile"
         ],
