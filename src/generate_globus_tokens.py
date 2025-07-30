@@ -4,6 +4,7 @@
 import json
 import os
 from globus_sdk import NativeAppAuthClient
+from globus_sdk.scopes import TransferScopes
 
 # Replace with your Client ID from the Native App registration
 CLIENT_ID = "caac995b-9dd6-4e1d-b150-d36581a70de9"
@@ -25,7 +26,8 @@ def get_and_save_tokens():
             "https://auth.globus.org/scopes/eec9b274-0c81-4334-bdc2-54e90e689b9a/run_manage",
             "https://auth.globus.org/scopes/7f1a1170-3e31-4241-864e-e504e736c7b8/data_access",
             "openid", 
-            "profile"
+            "profile",
+            TransferScopes.all
         ],
         refresh_tokens=True  # CRITICAL - enables refresh tokens!
     )
