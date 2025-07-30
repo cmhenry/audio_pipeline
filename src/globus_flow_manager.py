@@ -89,7 +89,7 @@ class GlobusTransferManager:
             # Filter for date
             logger.info(f"Filtering for {date_str}")
             for item in ls_result:
-                if item['name'].contains(date_str):
+                if date_str in item['name']:
                     filtered_files.append(item)
 
             # Filter for .tar.xz and .parquet files
