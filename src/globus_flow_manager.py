@@ -174,11 +174,11 @@ class GlobusFlowManager:
         if not dest_path.endswith('/'):
             dest_path += '/'
         # DEBUG
-        print("date_str: " + date_str)
-        print("source_endpoint: " + source_endpoint)
-        print("dest_endpoint: " + dest_endpoint)
-        print("source_path: " + source_path)
-        print("dest_path: " + dest_path)
+        # print("date_str: " + date_str)
+        # print("source_endpoint: " + source_endpoint)
+        # print("dest_endpoint: " + dest_endpoint)
+        # print("source_path: " + source_path)
+        # print("dest_path: " + dest_path)
         flow_input = {
             "date_str": date_str,
             "source_endpoint": source_endpoint,
