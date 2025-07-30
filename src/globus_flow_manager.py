@@ -44,6 +44,7 @@ class GlobusFlowManager:
         
         # Extract tokens
         client_id = tokens['CLIENT_ID']
+        self.tokens = tokens # Store all for later
         flows_refresh_token = tokens['FLOWS_REFRESH_TOKEN']
         if not flows_refresh_token:
             raise ValueError(
@@ -79,8 +80,27 @@ class GlobusFlowManager:
             raise ValueError("Flow ID not set. Deploy flow first or set AUDIO_TRANSFER_FLOW_ID environment variable")
         
         if not self._specific_client:
-            self._specific_client = SpecificFlowClient(self.flow_id, authorizer=self.authorizer)
-        
+            # Use the flow-specific refresh token
+            flow_specific_token = self.tokens.get('FLOW_SPECIFIC_REFRESH_TOKEN')
+            
+            if not flow_specific_token:
+                # Try using the flow ID as the resource server key
+                flow_specific_token = self.tokens.get(self.flow_id)
+                
+            if not flow_specific_token:
+                raise ValueError(
+                    f"No refresh token found for flow {self.flow_id}.\n"
+                    "Regenerate tokens after deploying your flow to include its scope."
+                )
+            
+            # Create authorizer with flow-specific token
+            flow_authorizer = RefreshTokenAuthorizer(
+                flow_specific_token,
+                self.auth_client
+            )
+            
+            self._specific_client = SpecificFlowClient(self.flow_id, authorizer=flow_authorizer)
+          
         return self._specific_client
     
     def deploy_flow(self, flow_definition_path: str, title: str = "Audio Pipeline Transfer Flow") -> Optional[str]:
