@@ -37,6 +37,7 @@ STORAGE_ROOT="/mnt/storage/audio_storage"
 
 # Create temp directory on local node
 mkdir -p "$TEMP_DIR"
+mkdir -p "$STAGING_DIR"
 
 # Update database status
 singularity run --nv \
