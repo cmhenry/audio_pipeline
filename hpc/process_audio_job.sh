@@ -50,7 +50,7 @@ singularity run --nv \
     --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
     --bind ${STAGING_DIR}:/staging \
     --bind ${TEMP_DIR}:/temp \
-    --bind /scratch:/scratch \
+    # --bind /scratch:/scratch \
     ${AUDIO_PROCESSING_SIF} \
     /opt/audio_pipeline/src/hpc_process_day.py \
     --date "$DATE_STR" \

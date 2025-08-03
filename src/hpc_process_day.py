@@ -49,7 +49,7 @@ class HPCTimestampedAudioProcessor:
         logger.info(f"Using device: {self.device}")
         
         self.model = whisperx.load_model(
-            "large-v3",
+            "large-v2",
             device=self.device,
             compute_type="float16" if self.device == "cuda" else "float32"
         )

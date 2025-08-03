@@ -14,6 +14,8 @@
 # Schedules daily Globus transfers and monitors completion
 # Updated for Singularity containers
 
+module load singularityce
+
 # Container paths
 CONTAINER_DIR="/data/cohenr/audio_pipeline/containers"
 PIPELINE_UTILS_SIF="${CONTAINER_DIR}/pipeline_utils.sif"
