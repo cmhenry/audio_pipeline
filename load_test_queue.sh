@@ -29,13 +29,13 @@ if [ ! -f "$TEST_FILE" ]; then
     cat > "$TEST_FILE" << 'EOF'
 # Test Processing Queue - 5 Days for Pipeline Testing
 # Format: year, month, date, location
-# Starting with January 25th as requested
+# Starting with february 1st as requested
 
-2025, january, 25, zurich
-2025, january, 26, zurich
-2025, january, 27, zurich
-2025, january, 28, zurich
-2025, january, 29, zurich
+2025, february, 01, zurich
+2025, february, 02, zurich
+2025, february, 03, zurich
+2025, february, 04, zurich
+2025, february, 05, zurich
 EOF
     echo "✓ Created $TEST_FILE with 5 test days"
 fi

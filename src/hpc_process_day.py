@@ -51,8 +51,7 @@ class HPCTimestampedAudioProcessor:
         self.model = whisperx.load_model(
             "large-v3",
             device=self.device,
-            compute_type="float16" if self.device == "cuda" else "float32",
-            batch_size=16
+            compute_type="float16" if self.device == "cuda" else "float32"
         )
         
         # Track processed files
@@ -244,7 +243,6 @@ class HPCTimestampedAudioProcessor:
                 # Transcribe
                 result = self.model.transcribe(
                     audio, 
-                    language="en",
                     batch_size=self.model.batch_size
                 )
                 
