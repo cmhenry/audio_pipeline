@@ -1,4 +1,15 @@
 #!/bin/bash
+#SBATCH --job-name=scheduler_%j
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=colin.henry@ipz.uzh.ch
+#SBATCH --partition=standard
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
+#SBATCH --time=06:00:00
+#SBATCH --output=/scratch/cohenr/logs/scheduler_%j.out
+#SBATCH --error=/scratch/cohenr/error/scheduler_%j.err
 # scheduler.sh - Runs on HPC login node via cron
 # Schedules daily Globus transfers and monitors completion
 # Updated for Singularity containers
