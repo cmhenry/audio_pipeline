@@ -41,7 +41,6 @@ class RsyncStorageManager:
             '--partial',           # Keep partial transfers
             '--partial-dir=.rsync-partial',  # Partial transfer directory
             '--timeout=600',       # 10 minute timeout
-            '--quiet'              # Reduce output
         ]
         
         self._test_connection()

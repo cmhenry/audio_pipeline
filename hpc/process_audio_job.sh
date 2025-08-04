@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=process_audio_%j
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=colin.henry@ipz.uzh.ch
+#SBATCH --mail-user=cmhenry@protonmail.com
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
@@ -32,7 +32,7 @@ STAGING_DIR="/scratch/cohenr/audio_storage/staging/${DATE_STR}"
 TEMP_DIR="/scratch/cohenr/audio_storage/${SLURM_JOB_ID}"  # Node-local fast storage
 
 # Storage configuration for rsync
-RSYNC_USER="audio_user"
+RSYNC_USER="ubuntu"
 STORAGE_ROOT="/mnt/storage/audio_storage"
 
 # Create temp directory on local node
