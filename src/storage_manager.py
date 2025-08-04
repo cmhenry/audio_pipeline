@@ -19,7 +19,8 @@ class RsyncStorageManager:
     """Manages audio file storage using rsync to database server"""
     
     def __init__(self, db_host: str, storage_root: str = "/mnt/storage/audio_storage", 
-                 rsync_user: str = "audio_user", max_retries: int = 3):
+                 rsync_user: str = "audio_user", ssh_key_path: Optional[str] = None,
+                 max_retries: int = 3):
         """
         Initialize rsync storage manager
         
@@ -27,20 +28,35 @@ class RsyncStorageManager:
             db_host: Database server hostname/IP (target for rsync)
             storage_root: Root directory on target server for audio files
             rsync_user: Username for rsync connections
+            ssh_key_path: Path to SSH identity file (optional)
             max_retries: Maximum retry attempts for failed transfers
         """
         self.db_host = db_host
         self.storage_root = storage_root
         self.rsync_user = rsync_user
+        self.ssh_key_path = ssh_key_path
         self.max_retries = max_retries
+        
+        # Build SSH command with options
+        ssh_options = []
+        if self.ssh_key_path:
+            ssh_options.extend(['-i', os.path.expanduser(self.ssh_key_path)])
+        ssh_options.extend([
+            '-o', 'StrictHostKeyChecking=no',
+            '-o', 'UserKnownHostsFile=/dev/null',
+            '-o', 'BatchMode=yes'  # Fail immediately if auth fails
+        ])
+        self.ssh_cmd = 'ssh ' + ' '.join(ssh_options)
         
         # Rsync options for optimized transfer
         self.rsync_options = [
+            '-e', self.ssh_cmd,    # SSH command with identity file
             '--archive',           # Archive mode (preserves permissions, timestamps)
             '--compress',          # Compress during transfer
             '--partial',           # Keep partial transfers
             '--partial-dir=.rsync-partial',  # Partial transfer directory
             '--timeout=600',       # 10 minute timeout
+            '--quiet'              # Reduce output
         ]
         
         self._test_connection()
@@ -48,9 +64,24 @@ class RsyncStorageManager:
     def _test_connection(self):
         """Test rsync connection to target server"""
         try:
-            cmd = ['rsync'] + self.rsync_options + [
+            # First test SSH connection
+            ssh_test_cmd = self._build_ssh_command(['echo', '"SSH connection successful"'])
+            
+            result = subprocess.run(
+                ssh_test_cmd,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            if result.returncode != 0:
+                logger.warning(f"SSH connection test failed: {result.stderr}")
+                return
+            
+            # Test rsync
+            cmd = ['rsync', '--dry-run'] + self.rsync_options + [
                 f"{self.rsync_user}@{self.db_host}:{self.storage_root}/",
-                '/tmp/rsync_test_dummy'
+                '/tmp/'
             ]
             
             result = subprocess.run(
@@ -67,6 +98,20 @@ class RsyncStorageManager:
                 
         except Exception as e:
             logger.warning(f"Could not test rsync connection: {e}")
+    
+    def _build_ssh_command(self, remote_cmd: List[str]) -> List[str]:
+        """Build SSH command with identity file"""
+        cmd = ['ssh']
+        if self.ssh_key_path:
+            cmd.extend(['-i', os.path.expanduser(self.ssh_key_path)])
+        cmd.extend([
+            '-o', 'StrictHostKeyChecking=no',
+            '-o', 'UserKnownHostsFile=/dev/null',
+            '-o', 'BatchMode=yes',
+            f"{self.rsync_user}@{self.db_host}"
+        ])
+        cmd.extend(remote_cmd)
+        return cmd
     
     def upload_file(self, local_path: Path, remote_path: str) -> bool:
         """
@@ -163,11 +208,7 @@ class RsyncStorageManager:
             
         try:
             # Use ssh to create directory
-            cmd = [
-                'ssh',
-                f"{self.rsync_user}@{self.db_host}",
-                f"mkdir -p {self.storage_root}/{remote_dir}"
-            ]
+            cmd = self._build_ssh_command([f"mkdir -p {self.storage_root}/{remote_dir}"])
             
             result = subprocess.run(
                 cmd,
@@ -214,11 +255,7 @@ class RsyncStorageManager:
             bool: True if file exists
         """
         try:
-            cmd = [
-                'ssh',
-                f"{self.rsync_user}@{self.db_host}",
-                f"test -f {self.storage_root}/{remote_path}"
-            ]
+            cmd = self._build_ssh_command([f"test -f {self.storage_root}/{remote_path}"])
             
             result = subprocess.run(
                 cmd,
@@ -243,11 +280,7 @@ class RsyncStorageManager:
             Optional[int]: File size in bytes, None if error
         """
         try:
-            cmd = [
-                'ssh',
-                f"{self.rsync_user}@{self.db_host}",
-                f"stat -c %s {self.storage_root}/{remote_path}"
-            ]
+            cmd = self._build_ssh_command([f"stat -c %s {self.storage_root}/{remote_path}"])
             
             result = subprocess.run(
                 cmd,
@@ -268,11 +301,9 @@ class RsyncStorageManager:
     def cleanup_failed_transfers(self):
         """Clean up any partial transfer files on remote server"""
         try:
-            cmd = [
-                'ssh',
-                f"{self.rsync_user}@{self.db_host}",
+            cmd = self._build_ssh_command([
                 f"find {self.storage_root} -name '.rsync-partial' -type d -exec rm -rf {{}} + 2>/dev/null || true"
-            ]
+            ])
             
             subprocess.run(cmd, timeout=60)
             logger.info("Cleaned up partial transfer files")

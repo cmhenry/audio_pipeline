@@ -41,7 +41,8 @@ class HPCTimestampedAudioProcessor:
             db_host=args.db_host,
             use_dummy=getattr(args, 'use_dummy_storage', False),
             rsync_user=getattr(args, 'rsync_user', 'audio_user'),
-            storage_root=getattr(args, 'storage_root', '/opt/audio_storage')
+            storage_root=getattr(args, 'storage_root', '/opt/audio_storage'),
+            ssh_key_path=args.ssh_key_path
         )
         
         # Initialize WhisperX on GPU

@@ -34,6 +34,7 @@ TEMP_DIR="/scratch/cohenr/audio_storage/${SLURM_JOB_ID}"  # Node-local fast stor
 # Storage configuration for rsync
 RSYNC_USER="ubuntu"
 STORAGE_ROOT="/mnt/storage/audio_storage"
+SECRETS_DIR="/data/cohenr/audio_pipeline_secrets"
 
 # Create temp directory on local node
 mkdir -p "$TEMP_DIR"
@@ -50,6 +51,7 @@ singularity run --nv \
     --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
     --bind ${STAGING_DIR}:/staging \
     --bind ${TEMP_DIR}:/temp \
+    --bind ${SECRETS_DIR}:/secrets \
     ${AUDIO_PROCESSING_SIF} \
     /opt/audio_pipeline/src/hpc_process_day.py \
     --date "$DATE_STR" \
@@ -59,6 +61,7 @@ singularity run --nv \
     --db-password "$DB_PASSWORD" \
     --rsync-user "$RSYNC_USER" \
     --storage-root "$STORAGE_ROOT" \
+    --ssh_keyfile "/secrets/ent.pem"
     --batch-size 100 \
     --num-workers 32
 
