@@ -61,7 +61,7 @@ singularity run --nv \
     --db-password "$DB_PASSWORD" \
     --rsync-user "$RSYNC_USER" \
     --storage-root "$STORAGE_ROOT" \
-    --ssh_keyfile "/secrets/ent.pem"
+    --ssh_keyfile "ent.pem" \
     --batch-size 100 \
     --num-workers 32
 

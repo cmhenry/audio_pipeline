@@ -42,7 +42,7 @@ class HPCTimestampedAudioProcessor:
             use_dummy=getattr(args, 'use_dummy_storage', False),
             rsync_user=getattr(args, 'rsync_user', 'audio_user'),
             storage_root=getattr(args, 'storage_root', '/opt/audio_storage'),
-            ssh_key_path=args.ssh_key_path
+            ssh_key_path="/secrets/"+args.ssh_keyfile
         )
         
         # Initialize WhisperX on GPU
@@ -392,6 +392,7 @@ def main():
     parser.add_argument('--rsync-user', default='audio_user', help='Username for rsync transfers')
     parser.add_argument('--storage-root', default='/opt/audio_storage', help='Root directory on target server')
     parser.add_argument('--use-dummy-storage', action='store_true', help='Use dummy storage (no actual transfers)')
+    parser.add_argument('--ssh_keyfile', default='ent.pem', help='SSH identity file for cloud storage')
     
     args = parser.parse_args()
     
