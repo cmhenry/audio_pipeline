@@ -28,8 +28,8 @@ DB_CREDS="host=172.23.76.3 port=5432 dbname=audio_pipeline user=audio_user passw
 export DB_CREDS
 
 # Set up paths
-STAGING_DIR="/scratch/cohenr/audio_storage/staging/${DATE_STR}"
-TEMP_DIR="/scratch/cohenr/audio_storage/${SLURM_JOB_ID}"  # Node-local fast storage
+STAGING_DIR="/shares/bdm.ipz.uzh/audio_storage/staging/${DATE_STR}"
+TEMP_DIR="/shares/bdm.ipz.uzh/audio_storage/staging/${SLURM_JOB_ID}"  # Node-local fast storage
 
 # Storage configuration for rsync
 RSYNC_USER="ubuntu"
