@@ -247,7 +247,7 @@ class HPCTimestampedAudioProcessor:
                 )
                 
                 # Extract transcript
-                transcript_text = ' '.join([s['text'].strip() for s in result.get('segments', [])])
+                transcript_text = result["segments"]
                 word_count = len(transcript_text.split())
                 
                 results.append({
