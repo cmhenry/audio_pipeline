@@ -243,8 +243,7 @@ class HPCTimestampedAudioProcessor:
                 
                 # Transcribe
                 result = self.model.transcribe(
-                    audio, 
-                    batch_size=self.model.batch_size
+                    audio
                 )
                 
                 # Extract transcript
