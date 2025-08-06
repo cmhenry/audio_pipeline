@@ -178,7 +178,7 @@ class HPCTimestampedAudioProcessor:
                     cur.execute("""
                         INSERT INTO transcripts 
                         (audio_file_id, transcript_text, duration_seconds)
-                        VALUES (%s, %s, %s, %s)
+                        VALUES (%s, %s, %s)
                     """, (audio_id, transcript['transcript'], 
                           transcript.get('duration', 0)))
                     
