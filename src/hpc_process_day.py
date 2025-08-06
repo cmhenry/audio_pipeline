@@ -110,7 +110,7 @@ class HPCTimestampedAudioProcessor:
         
         try:
             # Open tar.xz file
-            with tarfile.open(tar_path, 'r:xz') as tar:
+            with tarfile.open(tar_path, 'r:*') as tar:
                 members = [m for m in tar.getmembers() if m.name.endswith('.mp3')]
                 logger.info(f"Found {len(members)} MP3 files in {tar_path.name}")
                 
