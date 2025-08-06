@@ -16,6 +16,9 @@ from typing import List, Dict, Tuple
 
 from storage_manager import create_storage_manager
 
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -247,7 +250,7 @@ class HPCTimestampedAudioProcessor:
                 )
                 
                 # Extract transcript
-                transcript_text = result["segments"]
+                transcript_text = ' '.join([s['text'].strip() for s in result.get('segments', [])])
                 # word_count = len(transcript_text.split())
                 
                 results.append({
