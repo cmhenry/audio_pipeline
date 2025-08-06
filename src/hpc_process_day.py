@@ -174,10 +174,10 @@ class HPCTimestampedAudioProcessor:
                     # Store transcript
                     cur.execute("""
                         INSERT INTO transcripts 
-                        (audio_file_id, transcript_text, word_count, duration_seconds)
+                        (audio_file_id, transcript_text, duration_seconds)
                         VALUES (%s, %s, %s, %s)
                     """, (audio_id, transcript['transcript'], 
-                          transcript['word_count'], transcript.get('duration', 0)))
+                          transcript.get('duration', 0)))
                     
                     # Upload to storage via rsync
                     storage_path = self.storage.get_storage_path(
@@ -248,11 +248,11 @@ class HPCTimestampedAudioProcessor:
                 
                 # Extract transcript
                 transcript_text = result["segments"]
-                word_count = len(transcript_text.split())
+                # word_count = len(transcript_text.split())
                 
                 results.append({
                     'transcript': transcript_text,
-                    'word_count': word_count,
+                    # 'word_count': word_count,
                     'duration': len(audio) / 16000  # Assuming 16kHz
                 })
                 
@@ -260,7 +260,7 @@ class HPCTimestampedAudioProcessor:
                 logger.error(f"Transcription error for {audio_path.name}: {e}")
                 results.append({
                     'transcript': '',
-                    'word_count': 0,
+                    # 'word_count': 0,
                     'duration': 0
                 })
         
