@@ -4,10 +4,10 @@
 #SBATCH --mail-user=cmhenry@protonmail.com
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=16
 #SBATCH --gpus=H100:1
-#SBATCH --mem=64G
-#SBATCH --time=12:00:00
+#SBATCH --mem=128G
+#SBATCH --time=18:00:00
 #SBATCH --output=/scratch/cohenr/logs/process_%j.out
 #SBATCH --error=/scratch/cohenr/error/process_%j.err
 
