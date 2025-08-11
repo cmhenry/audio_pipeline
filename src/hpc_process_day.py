@@ -53,7 +53,7 @@ class HPCTimestampedAudioProcessor:
         logger.info(f"Using device: {self.device}")
         
         self.model = whisperx.load_model(
-            "large-v2",
+            "base",
             device=self.device,
             compute_type="float16" if self.device == "cuda" else "float32"
         )
@@ -106,49 +106,65 @@ class HPCTimestampedAudioProcessor:
             return f"{parts[3]}_{parts[4]}"
         return "unknown"
     
-    def process_timestamp_archive(self, tar_path: Path, timestamp: str):
-        """Process a single timestamp's tar.xz file"""
+    def extract_audio_files_from_tar(self, tar_path: Path, timestamp: str) -> List[Path]:
+        """Extract MP3 files from tar.xz archive and return their paths"""
         batch_dir = self.temp_dir / f"{self.date_str}_{timestamp}"
         batch_dir.mkdir(parents=True, exist_ok=True)
         
+        audio_files = []
         try:
-            # Open tar.xz file
             with tarfile.open(tar_path, 'r:*') as tar:
                 members = [m for m in tar.getmembers() if m.name.endswith('.mp3')]
                 logger.info(f"Found {len(members)} MP3 files in {tar_path.name}")
                 
-                # Process in batches
-                for i in range(0, len(members), self.batch_size):
-                    batch_members = members[i:i + self.batch_size]
-                    self.process_audio_batch(tar, batch_members, batch_dir, timestamp, i // self.batch_size)
+                # Extract all audio files
+                for member in members:
+                    tar.extract(member, batch_dir)
+                    audio_files.append(batch_dir / member.name)
                     
-                    # Clear GPU memory between batches
-                    if self.device == "cuda":
-                        torch.cuda.empty_cache()
-                        gc.collect()
+        except Exception as e:
+            logger.error(f"Failed to extract from {tar_path}: {e}")
+            # Clean up on error
+            import shutil
+            if batch_dir.exists():
+                shutil.rmtree(batch_dir)
+            raise
+            
+        return audio_files
+    
+    def process_timestamp_archive(self, tar_path: Path, timestamp: str):
+        """Process a single timestamp's tar.xz file"""
+        try:
+            # Extract audio files from tar
+            audio_files = self.extract_audio_files_from_tar(tar_path, timestamp)
+            
+            if not audio_files:
+                logger.warning(f"No audio files extracted from {tar_path.name}")
+                return
+            
+            # Process in batches
+            for i in range(0, len(audio_files), self.batch_size):
+                batch_files = audio_files[i:i + self.batch_size]
+                self.process_audio_batch(batch_files, timestamp, i // self.batch_size)
+                
+                # Clear GPU memory between batches
+                if self.device == "cuda":
+                    torch.cuda.empty_cache()
+                    gc.collect()
                     
         finally:
             # Clean up batch directory
             import shutil
+            batch_dir = self.temp_dir / f"{self.date_str}_{timestamp}"
             if batch_dir.exists():
                 shutil.rmtree(batch_dir)
     
-    def process_audio_batch(self, tar, members: List, batch_dir: Path, timestamp: str, batch_num: int):
-        """Process a batch of audio files from the tar"""
-        logger.info(f"Processing batch {batch_num} with {len(members)} files")
+    def process_audio_batch(self, audio_paths: List[Path], timestamp: str, batch_num: int):
+        """Process a batch of audio files"""
+        logger.info(f"Processing batch {batch_num} with {len(audio_paths)} files")
         
-        # Extract audio files
-        audio_paths = []
-        for member in members:
-            tar.extract(member, batch_dir)
-            audio_paths.append(batch_dir / member.name)
-        
-        # Parallel conversion to Opus
-        with ProcessPoolExecutor(max_workers=min(self.num_workers, len(audio_paths))) as executor:
-            opus_results = list(executor.map(self.convert_to_opus, audio_paths))
-        
-        # Filter successful conversions
-        opus_paths = [(orig, opus) for orig, opus in opus_results if opus is not None]
+        # Convert MP3 files to Opus format in parallel
+        opus_paths = self.batch_convert_to_opus(audio_paths)
         
         if not opus_paths:
             logger.warning(f"No successful conversions in batch {batch_num}")
@@ -218,7 +234,7 @@ class HPCTimestampedAudioProcessor:
                 '-b:a', '32k',
                 '-application', 'voip',
                 '-vbr', 'on',
-                '-compression_level', '10',
+                '-compression_level', '5',
                 '-ac', '1',  # Convert to mono
                 '-ar', '16000',  # 16kHz sample rate
                 '-y', str(opus_path)
@@ -235,37 +251,51 @@ class HPCTimestampedAudioProcessor:
             logger.error(f"Conversion error for {mp3_path.name}: {e}")
             return mp3_path, None
     
+    def batch_convert_to_opus(self, audio_paths: List[Path]) -> List[Tuple[Path, Path]]:
+        """Convert batch of MP3 files to Opus format in parallel"""
+        with ProcessPoolExecutor(max_workers=min(self.num_workers, len(audio_paths))) as executor:
+            results = list(executor.map(self.convert_to_opus, audio_paths))
+        
+        # Filter successful conversions
+        successful_conversions = [(orig, opus) for orig, opus in results if opus is not None]
+        
+        failed_count = len(results) - len(successful_conversions)
+        if failed_count > 0:
+            logger.warning(f"{failed_count} audio conversions failed")
+            
+        return successful_conversions
+    
+    def transcribe_audio_file(self, audio_path: Path) -> Dict:
+        """Transcribe a single audio file using WhisperX"""
+        try:
+            # Load audio
+            audio = whisperx.load_audio(str(audio_path))
+            
+            # Transcribe
+            result = self.model.transcribe(audio)
+            
+            # Extract transcript
+            transcript_text = ' '.join([s['text'].strip() for s in result.get('segments', [])])
+            
+            return {
+                'transcript': transcript_text,
+                'duration': len(audio) / 16000  # Assuming 16kHz
+            }
+            
+        except Exception as e:
+            logger.error(f"Transcription error for {audio_path.name}: {e}")
+            return {
+                'transcript': '',
+                'duration': 0
+            }
+    
     def batch_transcribe_gpu(self, audio_paths: List[Path]) -> List[Dict]:
         """Transcribe batch of audio files on GPU"""
         results = []
         
         for audio_path in audio_paths:
-            try:
-                # Load audio
-                audio = whisperx.load_audio(str(audio_path))
-                
-                # Transcribe
-                result = self.model.transcribe(
-                    audio
-                )
-                
-                # Extract transcript
-                transcript_text = ' '.join([s['text'].strip() for s in result.get('segments', [])])
-                # word_count = len(transcript_text.split())
-                
-                results.append({
-                    'transcript': transcript_text,
-                    # 'word_count': word_count,
-                    'duration': len(audio) / 16000  # Assuming 16kHz
-                })
-                
-            except Exception as e:
-                logger.error(f"Transcription error for {audio_path.name}: {e}")
-                results.append({
-                    'transcript': '',
-                    # 'word_count': 0,
-                    'duration': 0
-                })
+            result = self.transcribe_audio_file(audio_path)
+            results.append(result)
         
         return results
     

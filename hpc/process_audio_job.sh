@@ -62,8 +62,8 @@ singularity run --nv \
     --rsync-user "$RSYNC_USER" \
     --storage-root "$STORAGE_ROOT" \
     --ssh_keyfile "ent.pem" \
-    --batch-size 100 \
-    --num-workers 32
+    --batch-size 500 \
+    --num-workers 16
 
 # Check exit status
 if [ $? -eq 0 ]; then

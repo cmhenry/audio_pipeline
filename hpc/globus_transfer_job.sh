@@ -131,8 +131,8 @@ for i in $(seq 1 $MAX_CHECKS); do
                 ${PIPELINE_UTILS_SIF} \
                 /opt/audio_pipeline/src/db_utils.py --db-string "$DB_CREDS" update-transfer "$DATE_STR" ready_to_process
             
-            # Submit processing job
-            sbatch "${PIPELINE_DIR}/process_audio_job.sh" "$DATE_STR"
+            # Submit parallel processing job instead of sequential
+            sbatch "${PIPELINE_DIR}/process_day_parallel.sh" "$DATE_STR"
             exit 0
         else
             echo "Transfer incomplete: only $FILES_TRANSFERRED/$EXPECTED_FILES files"
