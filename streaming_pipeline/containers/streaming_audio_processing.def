@@ -1,0 +1,179 @@
+Bootstrap: docker
+From: nvidia/cuda:12.1-devel-ubuntu22.04
+
+%help
+    Streaming Audio Processing Container for TikTok Audio Pipeline
+    
+    This container includes:
+    - WhisperX for GPU-accelerated transcription
+    - FFmpeg for audio conversion
+    - Python 3.10 with audio processing libraries
+    - rsync for storage transfer
+    - Streaming-specific optimizations
+    
+    Usage:
+      singularity run --nv streaming_audio_processing.sif <script.py> [args]
+
+%labels
+    Author TikTok Audio Pipeline Team
+    Version 2.0-streaming
+    Description Streaming audio processing with async storage
+
+%files
+    # Copy any local files needed (none for now)
+
+%environment
+    export PATH="/usr/local/bin:$PATH"
+    export PYTHONPATH="/opt/streaming_pipeline/src:$PYTHONPATH"
+    export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+    export TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"
+    
+    # Optimize for streaming processing
+    export OMP_NUM_THREADS=4
+    export CUDA_LAUNCH_BLOCKING=0
+    export PYTORCH_CUDA_ALLOC_CONF="max_split_size_mb:512,expandable_segments:True"
+
+%post
+    # Update system and install basic dependencies
+    apt-get update -y
+    apt-get upgrade -y
+    
+    # Install essential packages
+    apt-get install -y \
+        python3 \
+        python3-pip \
+        python3-dev \
+        build-essential \
+        wget \
+        curl \
+        git \
+        rsync \
+        openssh-client \
+        ffmpeg \
+        libsndfile1 \
+        libsndfile1-dev \
+        sox \
+        libsox-fmt-all \
+        pkg-config \
+        libssl-dev \
+        libffi-dev \
+        libbz2-dev \
+        libreadline-dev \
+        libsqlite3-dev \
+        libncurses5-dev \
+        libncursesw5-dev \
+        xz-utils \
+        tk-dev \
+        uuid-dev
+    
+    # Install Python packages for audio processing
+    pip3 install --upgrade pip setuptools wheel
+    
+    # Core dependencies
+    pip3 install \
+        torch==2.1.0 \
+        torchaudio==2.1.0 \
+        torchvision==0.16.0 \
+        --index-url https://download.pytorch.org/whl/cu121
+    
+    # WhisperX and audio processing
+    pip3 install \
+        whisperx==3.1.1 \
+        transformers==4.35.2 \
+        accelerate==0.24.1 \
+        librosa==0.10.1 \
+        soundfile==0.12.1 \
+        audioread==3.0.1 \
+        scipy==1.11.4 \
+        numpy==1.24.4
+    
+    # Database and storage
+    pip3 install \
+        psycopg2-binary==2.9.9 \
+        sqlalchemy==2.0.23 \
+        pandas==2.1.4 \
+        pyarrow==14.0.1
+    
+    # Async and concurrency
+    pip3 install \
+        aiofiles==23.2.1 \
+        asyncio==3.4.3
+    
+    # Utilities
+    pip3 install \
+        tqdm==4.66.1 \
+        click==8.1.7 \
+        python-dotenv==1.0.0 \
+        pyyaml==6.0.1
+    
+    # Clean up
+    apt-get autoremove -y
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+    rm -rf /root/.cache/pip
+    
+    # Create application directories
+    mkdir -p /opt/streaming_pipeline/src
+    mkdir -p /opt/streaming_pipeline/data
+    mkdir -p /temp
+    mkdir -p /staging
+    mkdir -p /secrets
+    
+    # Set proper permissions
+    chmod 755 /opt/streaming_pipeline
+    chmod 755 /opt/streaming_pipeline/src
+    
+    # Test GPU and audio processing capabilities
+    python3 -c "import torch; print(f'PyTorch version: {torch.__version__}')"
+    python3 -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+    python3 -c "import whisperx; print('WhisperX imported successfully')"
+    
+    echo "Streaming audio processing container built successfully"
+
+%runscript
+    #!/bin/bash
+    
+    echo "=== Streaming Audio Processing Container ==="
+    echo "PyTorch version: $(python3 -c 'import torch; print(torch.__version__)')"
+    echo "CUDA available: $(python3 -c 'import torch; print(torch.cuda.is_available())')"
+    if [ -n "$CUDA_VISIBLE_DEVICES" ]; then
+        echo "CUDA devices: $CUDA_VISIBLE_DEVICES"
+        python3 -c "import torch; print(f'GPU count: {torch.cuda.device_count()}')" 2>/dev/null || true
+    fi
+    echo "Arguments: $@"
+    echo "=========================================="
+    
+    # Check if we're running a Python script
+    if [[ "$1" == *.py ]] || [[ "$1" == "python"* ]]; then
+        # Run Python script directly
+        exec "$@"
+    else
+        # Default behavior - run as Python script
+        exec python3 "$@"
+    fi
+
+%test
+    # Test the container functionality
+    echo "Testing streaming audio processing container..."
+    
+    # Test Python imports
+    python3 -c "import torch; print('✓ PyTorch imported')"
+    python3 -c "import whisperx; print('✓ WhisperX imported')"  
+    python3 -c "import psycopg2; print('✓ psycopg2 imported')"
+    python3 -c "import pandas; print('✓ Pandas imported')"
+    python3 -c "import numpy; print('✓ NumPy imported')"
+    python3 -c "import concurrent.futures; print('✓ Concurrent futures imported')"
+    
+    # Test system tools
+    which ffmpeg > /dev/null && echo "✓ FFmpeg available" || echo "✗ FFmpeg missing"
+    which rsync > /dev/null && echo "✓ rsync available" || echo "✗ rsync missing"
+    which ssh > /dev/null && echo "✓ SSH available" || echo "✗ SSH missing"
+    
+    # Test GPU (if available)
+    if python3 -c "import torch; exit(0 if torch.cuda.is_available() else 1)" 2>/dev/null; then
+        echo "✓ CUDA GPU detected and accessible"
+    else
+        echo "! No CUDA GPU detected (may be expected in build environment)"
+    fi
+    
+    echo "Container tests completed"
