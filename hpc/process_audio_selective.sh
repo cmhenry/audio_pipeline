@@ -13,6 +13,12 @@ DEFAULT_TEMP="/temp"
 DEFAULT_BATCH_SIZE=100
 DEFAULT_WORKERS=32
 
+# Database connection
+DB_HOST="172.23.76.3"
+DB_PASSWORD="audio_password"
+DB_CREDS="host=172.23.76.3 port=5432 dbname=audio_pipeline user=audio_user password=audio_password"
+export DB_CREDS
+
 # Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -168,15 +174,15 @@ run_pipeline() {
     # Build container command
     local cmd=(
         "singularity" "run" "--nv"
-        "--bind" "${STAGING_DIR}:${STAGING_DIR}"
-        "--bind" "${TEMP_DIR}:${TEMP_DIR}"
+        "--bind" "${STAGING_DIR}:/staging"
+        "--bind" "${TEMP_DIR}:/temp"
         "--bind" "./src:/opt/audio_pipeline/src"
         "--bind" "/secrets:/secrets"
         "${CONTAINER_SIF}"
         "/opt/audio_pipeline/src/hpc_process_day.py"
         "--date" "${DATE}"
-        "--staging-dir" "${STAGING_DIR}"
-        "--temp-dir" "${TEMP_DIR}"
+        "--staging-dir" "/staging"
+        "--temp-dir" "/temp"
         "--db-host" "${DB_HOST}"
         "--db-password" "${DB_PASSWORD}"
         "--batch-size" "${BATCH_SIZE}"
