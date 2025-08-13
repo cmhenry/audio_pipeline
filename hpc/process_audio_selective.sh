@@ -1,4 +1,14 @@
 #!/bin/bash
+#SBATCH --job-name=process_selective_%j
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=cmhenry@protonmail.com
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=64G
+#SBATCH --time=12:00:00
+#SBATCH --output=/scratch/cohenr/logs/process_selective_%j.out
+#SBATCH --error=/scratch/cohenr/error/process_selective_%j.err
 
 # process_audio_selective.sh - Selective audio pipeline processing
 # Allows user to select which stages of the pipeline to run
