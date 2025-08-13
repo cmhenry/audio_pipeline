@@ -62,9 +62,17 @@ class HPCTimestampedAudioProcessor:
         self.processed_count = 0
         self.failed_count = 0
         
-    def process_day(self):
-        """Main processing pipeline for one day of timestamped files"""
-        logger.info(f"Processing day {self.date_str}")
+    def process_day(self, stages=None):
+        """Main processing pipeline for one day of timestamped files
+        
+        Args:
+            stages: List of stages to run. Options: ['extract', 'convert', 'transcribe', 'upload']
+                   If None, runs all stages.
+        """
+        if stages is None:
+            stages = ['extract', 'convert', 'transcribe', 'upload']
+        
+        logger.info(f"Processing day {self.date_str} with stages: {stages}")
         
         try:
             # Get all tar.xz files for this day
@@ -80,15 +88,16 @@ class HPCTimestampedAudioProcessor:
                 logger.info(f"Processing {tar_file.name} (timestamp: {timestamp})")
                 
                 try:
-                    self.process_timestamp_archive(tar_file, timestamp)
+                    self.process_timestamp_archive(tar_file, timestamp, stages)
                 except Exception as e:
                     logger.error(f"Failed to process {tar_file.name}: {e}")
                     self.failed_count += 1
                     continue
             
             # After all audio is processed, handle metadata and comments
-            logger.info("Processing metadata and comments...")
-            self.process_day_metadata()
+            if 'metadata' in stages or len(set(stages) & {'extract', 'convert', 'transcribe', 'upload'}) == 4:
+                logger.info("Processing metadata and comments...")
+                self.process_day_metadata()
             
             # Update processing stats
             self._update_processing_stats()
@@ -132,50 +141,93 @@ class HPCTimestampedAudioProcessor:
             
         return audio_files
     
-    def process_timestamp_archive(self, tar_path: Path, timestamp: str):
-        """Process a single timestamp's tar.xz file"""
+    def process_timestamp_archive(self, tar_path: Path, timestamp: str, stages: List[str]):
+        """Process a single timestamp's tar.xz file with selected stages"""
+        batch_dir = None
         try:
-            # Extract audio files from tar
-            audio_files = self.extract_audio_files_from_tar(tar_path, timestamp)
-            
-            if not audio_files:
-                logger.warning(f"No audio files extracted from {tar_path.name}")
-                return
+            # Stage 1: Extract audio files from tar
+            if 'extract' in stages:
+                audio_files = self.extract_audio_files_from_tar(tar_path, timestamp)
+                if not audio_files:
+                    logger.warning(f"No audio files extracted from {tar_path.name}")
+                    return
+            else:
+                # Look for already extracted files
+                batch_dir = self.temp_dir / f"{self.date_str}_{timestamp}"
+                if batch_dir.exists():
+                    audio_files = list(batch_dir.glob("*.mp3"))
+                else:
+                    logger.warning(f"No extracted files found for {timestamp}, run extract stage first")
+                    return
             
             # Process in batches
             for i in range(0, len(audio_files), self.batch_size):
                 batch_files = audio_files[i:i + self.batch_size]
-                self.process_audio_batch(batch_files, timestamp, i // self.batch_size)
+                self.process_audio_batch(batch_files, timestamp, i // self.batch_size, stages)
                 
                 # Clear GPU memory between batches
-                if self.device == "cuda":
+                if 'transcribe' in stages and self.device == "cuda":
                     torch.cuda.empty_cache()
                     gc.collect()
                     
         finally:
-            # Clean up batch directory
-            import shutil
-            batch_dir = self.temp_dir / f"{self.date_str}_{timestamp}"
-            if batch_dir.exists():
-                shutil.rmtree(batch_dir)
+            # Clean up batch directory only if we're done with all stages
+            if 'extract' in stages and len(set(stages) & {'convert', 'transcribe', 'upload'}) > 0:
+                # Don't clean up yet, other stages need the files
+                pass
+            else:
+                import shutil
+                if batch_dir is None:
+                    batch_dir = self.temp_dir / f"{self.date_str}_{timestamp}"
+                if batch_dir.exists():
+                    shutil.rmtree(batch_dir)
     
-    def process_audio_batch(self, audio_paths: List[Path], timestamp: str, batch_num: int):
-        """Process a batch of audio files"""
-        logger.info(f"Processing batch {batch_num} with {len(audio_paths)} files")
+    def process_audio_batch(self, audio_paths: List[Path], timestamp: str, batch_num: int, stages: List[str]):
+        """Process a batch of audio files with selected stages"""
+        logger.info(f"Processing batch {batch_num} with {len(audio_paths)} files, stages: {stages}")
         
-        # Convert MP3 files to Opus format in parallel
-        opus_paths = self.batch_convert_to_opus(audio_paths)
+        opus_paths = []
+        transcripts = []
         
-        if not opus_paths:
-            logger.warning(f"No successful conversions in batch {batch_num}")
-            return
+        # Stage 2: Convert MP3 files to Opus format
+        if 'convert' in stages:
+            opus_paths = self.batch_convert_to_opus(audio_paths)
+            if not opus_paths:
+                logger.warning(f"No successful conversions in batch {batch_num}")
+                return
+        else:
+            # Look for already converted files
+            opus_paths = []
+            for mp3_path in audio_paths:
+                opus_path = mp3_path.with_suffix('.opus')
+                if opus_path.exists():
+                    opus_paths.append((mp3_path, opus_path))
+            if not opus_paths:
+                logger.warning(f"No converted Opus files found for batch {batch_num}, run convert stage first")
+                return
         
-        # Batch transcription on GPU
-        transcripts = self.batch_transcribe_gpu([p[1] for p in opus_paths])
+        # Stage 3: Batch transcription on GPU
+        if 'transcribe' in stages:
+            transcripts = self.batch_transcribe_gpu([p[1] for p in opus_paths])
         
-        # Store results
+        # Stage 4: Store results and upload
+        if 'upload' in stages or ('transcribe' in stages and len(transcripts) > 0):
+            self.store_and_upload_batch(opus_paths, transcripts, timestamp)
+        
+        # Clean up files based on what stages we ran
+        cleanup_mp3 = 'convert' in stages
+        cleanup_opus = 'upload' in stages
+        
+        for orig_path, opus_path in opus_paths:
+            if cleanup_mp3:
+                orig_path.unlink(missing_ok=True)
+            if cleanup_opus:
+                opus_path.unlink(missing_ok=True)
+    
+    def store_and_upload_batch(self, opus_paths: List[Tuple[Path, Path]], transcripts: List[Dict], timestamp: str):
+        """Store results in database and upload files to storage"""
         with self.db.cursor() as cur:
-            for (orig_path, opus_path), transcript in zip(opus_paths, transcripts):
+            for i, (orig_path, opus_path) in enumerate(opus_paths):
                 try:
                     # Extract original filename info
                     orig_filename = orig_path.name
@@ -190,13 +242,15 @@ class HPCTimestampedAudioProcessor:
                     
                     audio_id = cur.fetchone()[0]
                     
-                    # Store transcript
-                    cur.execute("""
-                        INSERT INTO transcripts 
-                        (audio_file_id, transcript_text, duration_seconds)
-                        VALUES (%s, %s, %s)
-                    """, (audio_id, transcript['transcript'], 
-                          transcript.get('duration', 0)))
+                    # Store transcript if available
+                    if i < len(transcripts):
+                        transcript = transcripts[i]
+                        cur.execute("""
+                            INSERT INTO transcripts 
+                            (audio_file_id, transcript_text, duration_seconds)
+                            VALUES (%s, %s, %s)
+                        """, (audio_id, transcript['transcript'], 
+                              transcript.get('duration', 0)))
                     
                     # Upload to storage via rsync
                     storage_path = self.storage.get_storage_path(
@@ -216,11 +270,6 @@ class HPCTimestampedAudioProcessor:
                     self.failed_count += 1
                     
             self.db.commit()
-        
-        # Clean up audio files immediately
-        for orig_path, opus_path in opus_paths:
-            orig_path.unlink(missing_ok=True)
-            opus_path.unlink(missing_ok=True)
     
     @staticmethod
     def convert_to_opus(mp3_path: Path) -> Tuple[Path, Path]:
@@ -420,6 +469,11 @@ def main():
     parser.add_argument('--batch-size', type=int, default=100, help='Audio files per batch')
     parser.add_argument('--num-workers', type=int, default=32, help='Parallel workers')
     
+    # Processing stage selection
+    parser.add_argument('--stages', nargs='+', 
+                       choices=['extract', 'convert', 'transcribe', 'upload', 'metadata'], 
+                       help='Pipeline stages to run. Default: all stages')
+    
     # Storage options
     parser.add_argument('--rsync-user', default='audio_user', help='Username for rsync transfers')
     parser.add_argument('--storage-root', default='/opt/audio_storage', help='Root directory on target server')
@@ -429,7 +483,7 @@ def main():
     args = parser.parse_args()
     
     processor = HPCTimestampedAudioProcessor(args)
-    processor.process_day()
+    processor.process_day(stages=args.stages)
 
 
 if __name__ == '__main__':
