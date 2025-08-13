@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Default values
-CONTAINER_DIR="/shares/bdm.ipz.uzh/audio_pipeline/containers"
+CONTAINER_DIR="/data/cohenr/audio_pipeline/containers"
 AUDIO_PROCESSING_SIF="${CONTAINER_DIR}/audio_processing.sif"
 DEFAULT_STAGING="/staging"
 DEFAULT_TEMP="/temp" 
