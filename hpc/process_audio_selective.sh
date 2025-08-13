@@ -10,7 +10,7 @@ module load singularityce
 CONTAINER_DIR="/data/cohenr/audio_pipeline/containers"
 AUDIO_PROCESSING_SIF="${CONTAINER_DIR}/audio_processing.sif"
 DEFAULT_STAGING="/staging"
-DEFAULT_TEMP="/temp" 
+DEFAULT_TEMP="/shares/bdm.ipz.uzh/audio_storage/staging/${SLURM_JOB_ID}"
 DEFAULT_BATCH_SIZE=100
 DEFAULT_WORKERS=32
 
