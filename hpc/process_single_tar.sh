@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --gpus=H100:1
 #SBATCH --mem=64G
-#SBATCH --time=01:00:00
+#SBATCH --time=03:00:00
 #SBATCH --output=/scratch/cohenr/logs/process_tar_%j.out
 #SBATCH --error=/scratch/cohenr/error/process_tar_%j.err
 
