@@ -4,6 +4,7 @@
 # Allows user to select which stages of the pipeline to run
 
 set -euo pipefail
+module load singularityce
 
 # Default values
 CONTAINER_DIR="/data/cohenr/audio_pipeline/containers"
