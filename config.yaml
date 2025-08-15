@@ -1,0 +1,46 @@
+# Audio Pipeline Configuration
+# This file provides global variables for HPC processing scripts
+
+# Container Configuration
+container:
+  dir: "/data/cohenr/audio_pipeline/containers"
+  audio_processing_sif: "/data/cohenr/audio_pipeline/containers/audio_processing.sif"
+  pipeline_utils_sif: "/data/cohenr/audio_pipeline/containers/pipeline_utils.sif"
+
+# Directory Paths
+paths:
+  script_dir: "/data/cohenr/audio_pipeline/src"
+  secrets_dir: "/data/cohenr/audio_pipeline_secrets"
+  staging_base: "/shares/bdm.ipz.uzh/audio_storage/staging"
+  scratch_base: "/scratch/cohenr"
+
+# Database Configuration
+database:
+  host: "172.23.76.3"
+  port: 5432
+  name: "audio_pipeline"
+  user: "audio_user"
+  password: "audio_password"
+
+# Storage Configuration
+storage:
+  rsync_user: "ubuntu"
+  storage_root: "/mnt/storage/audio_storage"
+  ssh_keyfile: "ent.pem"
+
+# Processing Defaults
+processing:
+  batch_size: 100
+  num_workers: 32
+  large_batch_size: 500
+  large_num_workers: 16
+
+# SLURM Configuration
+slurm:
+  mail_user: "cmhenry@protonmail.com"
+  log_dir: "/scratch/cohenr/logs"
+  error_dir: "/scratch/cohenr/error"
+
+# Modules
+modules:
+  singularity: "singularityce"

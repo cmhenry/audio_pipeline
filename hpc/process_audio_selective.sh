@@ -19,10 +19,16 @@ module load singularityce
 # Default values
 CONTAINER_DIR="/data/cohenr/audio_pipeline/containers"
 AUDIO_PROCESSING_SIF="${CONTAINER_DIR}/audio_processing.sif"
-DEFAULT_STAGING="/staging"
+SCRIPT_DIR="/data/cohenr/audio_pipeline/src"
+DEFAULT_STAGING="/shares/bdm.ipz.uzh/audio_storage/staging/${DATE}"
 DEFAULT_TEMP="/shares/bdm.ipz.uzh/audio_storage/staging/${SLURM_JOB_ID}"
 DEFAULT_BATCH_SIZE=100
 DEFAULT_WORKERS=32
+
+# Storage configuration for rsync
+RSYNC_USER="ubuntu"
+STORAGE_ROOT="/mnt/storage/audio_storage"
+SECRETS_DIR="/data/cohenr/audio_pipeline_secrets"
 
 # Database connection
 DB_HOST="172.23.76.3"
@@ -187,8 +193,8 @@ run_pipeline() {
         "singularity" "run" "--nv"
         "--bind" "${STAGING_DIR}:/staging"
         "--bind" "${TEMP_DIR}:/temp"
-        "--bind" "./src:/opt/audio_pipeline/src"
-        "--bind" "/secrets:/secrets"
+        "--bind" "${SCRIPT_DIR}:/opt/audio_pipeline/src"
+        "--bind" "${SECRETS_DIR}:/secrets"
         "${CONTAINER_SIF}"
         "/opt/audio_pipeline/src/hpc_process_day.py"
         "--date" "${DATE}"
