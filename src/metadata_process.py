@@ -20,12 +20,12 @@ logger = logging.getLogger(__name__)
 
 class HPCTimestampedAudioProcessor:
     def __init__(self, args):
-        self.staging_dir = Path(args.staging_dir)
+        self.staging_dir = Path(args.staging_dir) + "/prepped_data"
         # Extract date info from staging directory name if needed
         # For monthly processing, we'll set these from args if provided
-        self.year = getattr(args, 'year', 2025)
+        self.year = 2025
         self.month = getattr(args, 'month', 1) 
-        self.day = getattr(args, 'day', 1)
+        self.day = 1
         # self.batch_size = args.batch_size
         # self.num_workers = args.num_workers
         
@@ -465,6 +465,7 @@ def main():
     parser.add_argument('--staging-dir', required=True, help='Staging directory path')
     parser.add_argument('--db-host', required=True, help='Database host (also rsync target)')
     parser.add_argument('--db-password', default='audio_password', help='Database password')
+    parser.add_argument('--month', help='Month to process')
     # parser.add_argument('--batch-size', type=int, default=100, help='Audio files per batch')
     # parser.add_argument('--num-workers', type=int, default=32, help='Parallel workers')
     
