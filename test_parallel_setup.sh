@@ -161,7 +161,7 @@ echo "Parallel processing setup validation complete."
 echo
 echo "To deploy:"
 echo "1. Ensure containers are built: cd containers && ./build_containers.sh"
-echo "2. Apply database schema updates (optional): psql < db/parallel_processing_schema_update.sql"  
+echo "2. Apply database schema: ./db/manage_schema.sh"  
 echo "3. Test with small dataset: sbatch hpc/process_day_parallel.sh 2025-01-25"
 echo
 echo "Key differences from original pipeline:"
