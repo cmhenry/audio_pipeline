@@ -10,6 +10,7 @@ import subprocess
 import logging
 import gc
 from typing import List, Dict, Tuple
+from sqlalchemy import create_engine
 
 # Source storage_manager for rsync support
 from storage_manager import create_storage_manager
@@ -30,12 +31,17 @@ class HPCTimestampedAudioProcessor:
         # self.num_workers = args.num_workers
         
         # Initialize connections
+        # psycopg2 connection for raw SQL operations
         self.db = psycopg2.connect(
             host=args.db_host,
             database="audio_pipeline",
             user="audio_user",
             password=args.db_password
         )
+        
+        # SQLAlchemy engine for pandas operations
+        db_url = f"postgresql://audio_user:{args.db_password}@{args.db_host}:5432/audio_pipeline"
+        self.db_engine = create_engine(db_url)
         
         # Storage configuration - use rsync to database host
         self.storage = create_storage_manager(
@@ -76,8 +82,8 @@ class HPCTimestampedAudioProcessor:
         logger.info(f"Directory exists: {self.staging_dir.exists()}")
         
         # List directory contents for debugging
-        if self.staging_dir.exists():
-            logger.info(f"Directory contents: {list(self.staging_dir.iterdir())}")
+        # if self.staging_dir.exists():
+        #     logger.info(f"Directory contents: {list(self.staging_dir.iterdir())}")
         
         # Collect all parquet files (fix glob patterns - remove regex ^ syntax)
         metadata_files = sorted(self.staging_dir.glob("*_metadata.parquet"))
@@ -293,7 +299,7 @@ class HPCTimestampedAudioProcessor:
         try:
             metadata_df.to_sql(
                 'audio_metadata',
-                self.db,
+                self.db_engine,
                 if_exists='append',
                 index=False,
                 method='multi',
@@ -394,7 +400,7 @@ class HPCTimestampedAudioProcessor:
         try:
             comments_df.to_sql(
                 'comments',
-                self.db,
+                self.db_engine,
                 if_exists='append',
                 index=False,
                 method='multi',
@@ -432,7 +438,7 @@ class HPCTimestampedAudioProcessor:
         try:
             subtitles_df.to_sql(
                 'subtitles',
-                self.db,
+                self.db_engine,
                 if_exists='append',
                 index=False,
                 method='multi',
