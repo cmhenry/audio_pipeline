@@ -146,13 +146,132 @@ class HPCTimestampedAudioProcessor:
     
     def _store_metadata_batch(self, metadata_df: pd.DataFrame):
         """Store metadata in database"""
-        # Map DataFrame columns to database columns
+        # Map DataFrame columns to database columns (from METADATA_NAMES.md)
         column_mapping = {
+            # Core metadata
             'meta_id': 'meta_id',
+            'poi_id': 'poi_id',
+            'duetinfo_duetfromid': 'duetinfo_duetfromid',
+            'meta_createtime': 'meta_createtime',
+            'meta_scheduletime': 'meta_scheduletime',
+            'meta_itemcommentstatus': 'meta_itemcommentstatus',
+            'meta_diversificationid': 'meta_diversificationid',
+            'meta_categorytype': 'meta_categorytype',
+            'meta_textlanguage': 'meta_textlanguage',
+            'meta_desc': 'meta_desc',
+            'meta_locationcreated': 'meta_locationcreated',
+            'meta_diversificationlabels': 'meta_diversificationlabels',
+            'meta_serverabversions': 'meta_serverabversions',
+            'meta_suggestedwords': 'meta_suggestedwords',
+            'meta_adlabelversion': 'meta_adlabelversion',
+            'meta_bainfo': 'meta_bainfo',
+            'meta_secret': 'meta_secret',
+            'meta_privateitem': 'meta_privateitem',
+            'meta_duetenabled': 'meta_duetenabled',
+            'meta_stitchenabled': 'meta_stitchenabled',
+            'meta_indexenabled': 'meta_indexenabled',
+            'meta_iscontentclassified': 'meta_iscontentclassified',
+            'meta_isaigc': 'meta_isaigc',
+            'meta_isad': 'meta_isad',
+            'meta_isecvideo': 'meta_isecvideo',
+            'meta_aigclabeltype': 'meta_aigclabeltype',
+            'meta_aigcdescription': 'meta_aigcdescription',
+            
+            # Author information
             'author_id': 'author_id',
+            'author_uniqueid': 'author_uniqueid',
             'author_nickname': 'author_nickname',
+            'author_signature': 'author_signature',
+            'author_roomid': 'author_roomid',
+            'author_verified': 'author_verified',
+            'author_openfavorite': 'author_openfavorite',
+            'author_commentsetting': 'author_commentsetting',
+            'author_duetsetting': 'author_duetsetting',
+            'author_stitchsetting': 'author_stitchsetting',
+            'author_downloadsetting': 'author_downloadsetting',
+            'author_createtime': 'author_createtime',
+            
+            # Author statistics
+            'authorstats_followercount': 'authorstats_followercount',
+            'authorstats_followingcount': 'authorstats_followingcount',
+            'authorstats_heart': 'authorstats_heart',
+            'authorstats_heartcount': 'authorstats_heartcount',
+            'authorstats_videocount': 'authorstats_videocount',
+            'authorstats_diggcount': 'authorstats_diggcount',
+            'authorstats_friendcount': 'authorstats_friendcount',
+            
+            # Music information
+            'music_id': 'music_id',
+            'music_title': 'music_title',
+            'music_authorname': 'music_authorname',
+            'music_album': 'music_album',
+            'music_duration': 'music_duration',
+            'music_schedulesearchtime': 'music_schedulesearchtime',
+            'music_collected': 'music_collected',
+            
+            # Statistics
+            'stats_diggcount': 'stats_diggcount',
+            'stats_sharecount': 'stats_sharecount',
+            'stats_commentcount': 'stats_commentcount',
             'stats_playcount': 'stats_playcount',
-            # Add all other mappings...
+            'stats_collectcount': 'stats_collectcount',
+            
+            # Video specifications
+            'video_height': 'video_height',
+            'video_width': 'video_width',
+            'video_duration': 'video_duration',
+            'video_bitrate': 'video_bitrate',
+            'video_ratio': 'video_ratio',
+            'video_encodedtype': 'video_encodedtype',
+            'video_format': 'video_format',
+            'video_videoquality': 'video_videoquality',
+            'video_codectype': 'video_codectype',
+            'video_definition': 'video_definition',
+            
+            # Location/POI information
+            'poi_type': 'poi_type',
+            'poi_name': 'poi_name',
+            'poi_address': 'poi_address',
+            'poi_city': 'poi_city',
+            'poi_citycode': 'poi_citycode',
+            'poi_province': 'poi_province',
+            'poi_country': 'poi_country',
+            'poi_countrycode': 'poi_countrycode',
+            'poi_fatherpoiid': 'poi_fatherpoiid',
+            'poi_fatherpoiname': 'poi_fatherpoiname',
+            'poi_category': 'poi_category',
+            'poi_tttypecode': 'poi_tttypecode',
+            'poi_typecode': 'poi_typecode',
+            'poi_tttypenametiny': 'poi_tttypenametiny',
+            'poi_tttypenamemedium': 'poi_tttypenamemedium',
+            'poi_tttypenamesuper': 'poi_tttypenamesuper',
+            
+            # Address information
+            'adress_addresscountry': 'adress_addresscountry',
+            'adress_addresslocality': 'adress_addresslocality',
+            'adress_addressregion': 'adress_addressregion',
+            'adress_streetaddress': 'adress_streetaddress',
+            
+            # Status and messages
+            'statuscode': 'statuscode',
+            'statusmsg': 'statusmsg',
+            'description_hash': 'description_hash',
+            
+            # Arrays/JSONB fields
+            'subtitle_subtitle_lang': 'subtitle_subtitle_lang',
+            'bitrate_bitrate_info': 'bitrate_bitrate_info',
+            'text_extra_user_mention': 'text_extra_user_mention',
+            'text_extra_hashtag_mention': 'text_extra_hashtag_mention',
+            'warning_warning': 'warning_warning',
+            
+            # Processing metadata
+            'timestamp': 'timestamp',
+            'pol': 'pol',
+            'hour': 'hour',
+            'country': 'country',
+            'processed_desc': 'processed_desc',
+            'raw': 'raw',
+            'collection_timestamp': 'collection_timestamp',
         }
         
         # Rename columns
@@ -179,17 +298,81 @@ class HPCTimestampedAudioProcessor:
     
     def _store_comments_batch(self, comments_df: pd.DataFrame):
         """Store comments in database"""
-        # Map DataFrame columns to database columns
+        # Map DataFrame columns to database columns (from METADATA_NAMES.md)
         column_mapping = {
-            'comment_id': 'comment_id',
-            'video_id': 'video_id',
-            'author_id': 'author_id',
-            'author_nickname': 'author_nickname',
-            'comment_text': 'comment_text',
+            # Core comment information
+            'meta_id': 'meta_id',
+            'cid': 'cid',
+            'aweme_id': 'aweme_id',
+            'text': 'comment_text',
             'create_time': 'create_time',
-            'like_count': 'like_count',
-            'reply_count': 'reply_count',
-            # Add other mappings as needed
+            
+            # Comment engagement stats
+            'digg_count': 'digg_count',
+            'reply_comment_total': 'reply_comment_total',
+            
+            # Comment metadata
+            'comment_language': 'comment_language',
+            'status': 'status',
+            'stick_position': 'stick_position',
+            'is_comment_translatable': 'is_comment_translatable',
+            'no_show': 'no_show',
+            
+            # User engagement flags
+            'user_digged': 'user_digged',
+            'user_buried': 'user_buried',
+            'is_author_digged': 'is_author_digged',
+            'author_pin': 'author_pin',
+            
+            # Reply information
+            'reply_id': 'reply_id',
+            'reply_to_reply_id': 'reply_to_reply_id',
+            'reply_comment': 'reply_comment',
+            'reply_score': 'reply_score',
+            'show_more_score': 'show_more_score',
+            
+            # Author information
+            'uid': 'uid',
+            'sec_uid': 'sec_uid',
+            'nickname': 'nickname',
+            'unique_id': 'unique_id',
+            'custom_verify': 'custom_verify',
+            'enterprise_verify_reason': 'enterprise_verify_reason',
+            
+            # JSONB fields for complex data
+            'account_labels': 'account_labels',
+            'label_list': 'label_list',
+            'sort_tags': 'sort_tags',
+            'comment_post_item_ids': 'comment_post_item_ids',
+            'collect_stat': 'collect_stat',
+            'ad_cover_url': 'ad_cover_url',
+            'advance_feature_item_order': 'advance_feature_item_order',
+            'advanced_feature_info': 'advanced_feature_info',
+            'bold_fields': 'bold_fields',
+            'can_message_follow_status_list': 'can_message_follow_status_list',
+            'can_set_geofencing': 'can_set_geofencing',
+            'cha_list': 'cha_list',
+            'cover_url': 'cover_url',
+            'events': 'events',
+            'followers_detail': 'followers_detail',
+            'geofencing': 'geofencing',
+            'homepage_bottom_toast': 'homepage_bottom_toast',
+            'item_list': 'item_list',
+            'mutual_relation_avatars': 'mutual_relation_avatars',
+            'need_points': 'need_points',
+            'platform_sync_info': 'platform_sync_info',
+            'relative_users': 'relative_users',
+            'search_highlight': 'search_highlight',
+            'shield_edit_field_info': 'shield_edit_field_info',
+            'type_label': 'type_label',
+            'user_profile_guide': 'user_profile_guide',
+            'user_tags': 'user_tags',
+            'white_cover_url': 'white_cover_url',
+            
+            # Processing metadata
+            'total': 'total',
+            'collection_timestamp': 'collection_timestamp',
+            'hash_unique_id': 'hash_unique_id',
         }
         
         # Rename columns
@@ -216,15 +399,18 @@ class HPCTimestampedAudioProcessor:
     
     def _store_subtitles_batch(self, subtitles_df: pd.DataFrame):
         """Store subtitles in database"""
-        # Map DataFrame columns to database columns
+        # Map DataFrame columns to database columns (from METADATA_NAMES.md)
         column_mapping = {
-            'video_id': 'video_id',
-            'subtitle_text': 'subtitle_text',
-            'language': 'language',
-            'start_time': 'start_time',
-            'end_time': 'end_time',
-            'confidence': 'confidence',
-            # Add other mappings as needed
+            # Core subtitle information
+            'meta_id': 'meta_id',
+            'content': 'content',
+            'lang': 'lang',
+            'type': 'type',
+            'rest': 'rest',
+            
+            # Processing metadata
+            'collection_timestamp': 'collection_timestamp',
+            'hash_unique_id': 'hash_unique_id',
         }
         
         # Rename columns
