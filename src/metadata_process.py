@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class HPCTimestampedAudioProcessor:
     def __init__(self, args):
-        self.staging_dir = Path(args.staging_dir) + "/prepped_data"
+        self.staging_dir = Path(args.staging_dir + "/prepped_data")
         # Extract date info from staging directory name if needed
         # For monthly processing, we'll set these from args if provided
         self.year = 2025
