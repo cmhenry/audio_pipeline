@@ -4,8 +4,8 @@
 #SBATCH --mail-user=cmhenry@protonmail.com
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2
-#SBATCH --mem=16G
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=64G
 #SBATCH --time=12:00:00
 #SBATCH --output=/scratch/cohenr/logs/metadata/metadata_process_%j.out
 #SBATCH --error=/scratch/cohenr/error/metadata/metadata_process_%j.err
@@ -15,6 +15,54 @@ set -a; source config.env; set +a
 
 # Import singularity module
 module load singularityce
+
+# User input staging directory
+STAGING_DIR=$1
+
+# Validate input
+if [ -z "$STAGING_DIR" ]; then
+    echo "Error: Please provide staging directory as argument"
+    echo "Usage: sbatch metadata.sh /path/to/zurich_2025_january"
+    exit 1
+fi
+
+# Extract folder name from staging directory path
+FOLDER_NAME=$(basename "$STAGING_DIR")
+
+# Parse folder name (format: zurich_2025_january) to create date string
+if [[ "$FOLDER_NAME" =~ ^([a-z]+)_([0-9]{4})_([a-z]+)$ ]]; then
+    LOCATION="${BASH_REMATCH[1]}"
+    YEAR="${BASH_REMATCH[2]}"
+    MONTH_NAME="${BASH_REMATCH[3]}"
+    
+    # Convert month name to number
+    case "$MONTH_NAME" in
+        january) MONTH="01" ;;
+        february) MONTH="02" ;;
+        march) MONTH="03" ;;
+        april) MONTH="04" ;;
+        may) MONTH="05" ;;
+        june) MONTH="06" ;;
+        july) MONTH="07" ;;
+        august) MONTH="08" ;;
+        september) MONTH="09" ;;
+        october) MONTH="10" ;;
+        november) MONTH="11" ;;
+        december) MONTH="12" ;;
+        *) echo "Error: Invalid month name '$MONTH_NAME'"; exit 1 ;;
+    esac
+    
+    # Create date string for database (use first day of month)
+    DATE_STR="${YEAR}-${MONTH}-01"
+    
+    echo "Processing folder: $FOLDER_NAME"
+    echo "Location: $LOCATION, Year: $YEAR, Month: $MONTH"
+    echo "Database date string: $DATE_STR"
+else
+    echo "Error: Folder name '$FOLDER_NAME' does not match expected format 'location_YYYY_month'"
+    echo "Example: zurich_2025_january"
+    exit 1
+fi
 
 # Update database status
 singularity run --nv \
