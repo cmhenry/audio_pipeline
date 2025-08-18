@@ -72,10 +72,17 @@ class HPCTimestampedAudioProcessor:
   
     def process_month_metadata(self):
         """Process all metadata and comments files for the month"""
-        # Collect all parquet files
-        metadata_files = sorted(self.staging_dir.glob("^.*_metadata\.parquet"))
-        comments_files = sorted(self.staging_dir.glob("^.*_comments\.parquet"))
-        subtitles_files = sorted(self.staging_dir.glob("^.*_subtitles\.parquet"))
+        logger.info(f"Searching for parquet files in: {self.staging_dir}")
+        logger.info(f"Directory exists: {self.staging_dir.exists()}")
+        
+        # List directory contents for debugging
+        if self.staging_dir.exists():
+            logger.info(f"Directory contents: {list(self.staging_dir.iterdir())}")
+        
+        # Collect all parquet files (fix glob patterns - remove regex ^ syntax)
+        metadata_files = sorted(self.staging_dir.glob("*_metadata.parquet"))
+        comments_files = sorted(self.staging_dir.glob("*_comments.parquet"))
+        subtitles_files = sorted(self.staging_dir.glob("*_subtitles.parquet"))
         
         logger.info(f"Found {len(metadata_files)} metadata, {len(comments_files)} comments, "
                    f"{len(subtitles_files)} subtitles files")
