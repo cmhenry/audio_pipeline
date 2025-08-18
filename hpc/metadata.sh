@@ -74,7 +74,6 @@ singularity run --nv \
 singularity run --nv \
     --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
     --bind ${STAGING_DIR}:/staging \
-    --bind ${TEMP_DIR}:/temp \
     --bind ${SECRETS_DIR}:/secrets \
     ${AUDIO_PROCESSING_SIF} \
     /opt/audio_pipeline/src/metadata_process.py \
