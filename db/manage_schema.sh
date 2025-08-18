@@ -7,7 +7,7 @@ DB_USER="audio_user"
 DB_PASSWORD="audio_password"  # Should match setup script or be updated
 
 # Schema version for future migrations
-SCHEMA_VERSION="2.1"
+SCHEMA_VERSION="3.0"
 
 # Color codes
 RED='\033[0;31m'
@@ -75,6 +75,8 @@ case $choice in
         # Drop all objects
         PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /dev/null 2>&1
 DROP VIEW IF EXISTS audio_with_transcripts CASCADE;
+DROP TABLE IF EXISTS comments CASCADE;
+DROP TABLE IF EXISTS subtitles CASCADE;
 DROP TABLE IF EXISTS processing_queue CASCADE;
 DROP TABLE IF EXISTS audio_metadata CASCADE;
 DROP TABLE IF EXISTS transcripts CASCADE;
@@ -204,6 +206,16 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     author_duetsetting INTEGER,
     author_stitchsetting INTEGER,
     author_downloadsetting INTEGER,
+    author_createtime TIMESTAMP,
+    
+    -- Author statistics (from METADATA_NAMES.md)
+    authorstats_followercount BIGINT DEFAULT 0,
+    authorstats_followingcount BIGINT DEFAULT 0,
+    authorstats_heart BIGINT DEFAULT 0,
+    authorstats_heartcount BIGINT DEFAULT 0,
+    authorstats_videocount BIGINT DEFAULT 0,
+    authorstats_diggcount BIGINT DEFAULT 0,
+    authorstats_friendcount BIGINT DEFAULT 0,
 
     -- Music information
     music_id VARCHAR(255),
@@ -290,6 +302,9 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     pol VARCHAR(50),
     hour INTEGER,
     country VARCHAR(255),
+    raw TEXT,
+    meta_textlanguage VARCHAR(20),
+    meta_categorytype INTEGER,
 
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -333,6 +348,138 @@ CREATE TRIGGER update_processing_queue_updated_at
 EOF
 echo -e "   ${GREEN}✓${NC} Created processing_queue table"
 
+# Create comments table
+PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /dev/null 2>&1
+CREATE TABLE IF NOT EXISTS comments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    meta_id VARCHAR(255) NOT NULL,
+    
+    -- Core comment information
+    cid VARCHAR(255) NOT NULL,
+    aweme_id VARCHAR(255),
+    comment_text TEXT,
+    create_time TIMESTAMP,
+    
+    -- Comment engagement stats
+    digg_count BIGINT DEFAULT 0,
+    reply_count BIGINT DEFAULT 0,
+    reply_comment_total INTEGER DEFAULT 0,
+    
+    -- Comment metadata
+    comment_language VARCHAR(20),
+    status INTEGER,
+    stick_position INTEGER,
+    is_comment_translatable BOOLEAN DEFAULT FALSE,
+    no_show BOOLEAN DEFAULT FALSE,
+    
+    -- User engagement flags
+    user_digged BOOLEAN DEFAULT FALSE,
+    user_buried BOOLEAN DEFAULT FALSE,
+    is_author_digged BOOLEAN DEFAULT FALSE,
+    author_pin BOOLEAN DEFAULT FALSE,
+    
+    -- Reply information
+    reply_id VARCHAR(255),
+    reply_to_reply_id VARCHAR(255),
+    reply_comment TEXT,
+    reply_score DECIMAL(5,2),
+    show_more_score DECIMAL(5,2),
+    
+    -- Author information
+    uid VARCHAR(255),
+    sec_uid VARCHAR(255),
+    nickname VARCHAR(255),
+    unique_id VARCHAR(255),
+    
+    -- Author verification and profile
+    custom_verify VARCHAR(255),
+    enterprise_verify_reason TEXT,
+    
+    -- JSONB fields for complex data
+    account_labels JSONB,
+    label_list JSONB,
+    sort_tags JSONB,
+    comment_post_item_ids JSONB,
+    collect_stat JSONB,
+    ad_cover_url JSONB,
+    advance_feature_item_order JSONB,
+    advanced_feature_info JSONB,
+    bold_fields JSONB,
+    can_message_follow_status_list JSONB,
+    can_set_geofencing JSONB,
+    cha_list JSONB,
+    cover_url JSONB,
+    events JSONB,
+    followers_detail JSONB,
+    geofencing JSONB,
+    homepage_bottom_toast JSONB,
+    item_list JSONB,
+    mutual_relation_avatars JSONB,
+    need_points JSONB,
+    platform_sync_info JSONB,
+    relative_users JSONB,
+    search_highlight JSONB,
+    shield_edit_field_info JSONB,
+    type_label JSONB,
+    user_profile_guide JSONB,
+    user_tags JSONB,
+    white_cover_url JSONB,
+    
+    -- Processing metadata
+    collection_timestamp TIMESTAMP,
+    hash_unique_id VARCHAR(255),
+    total INTEGER,
+    year INTEGER,
+    month INTEGER,
+    date INTEGER,
+    
+    -- Timestamps
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add trigger if not exists
+DROP TRIGGER IF EXISTS update_comments_updated_at ON comments;
+CREATE TRIGGER update_comments_updated_at
+    BEFORE UPDATE ON comments
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+EOF
+echo -e "   ${GREEN}✓${NC} Created comments table"
+
+# Create subtitles table
+PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /dev/null 2>&1
+CREATE TABLE IF NOT EXISTS subtitles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    meta_id VARCHAR(255) NOT NULL,
+    
+    -- Core subtitle information
+    content TEXT,
+    lang VARCHAR(20),
+    type VARCHAR(50),
+    
+    -- Subtitle metadata
+    rest TEXT,
+    
+    -- Processing metadata
+    collection_timestamp TIMESTAMP,
+    hash_unique_id VARCHAR(255),
+    year INTEGER,
+    month INTEGER,
+    date INTEGER,
+    
+    -- Timestamps
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add trigger if not exists
+DROP TRIGGER IF EXISTS update_subtitles_updated_at ON subtitles;
+CREATE TRIGGER update_subtitles_updated_at
+    BEFORE UPDATE ON subtitles
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+EOF
+echo -e "   ${GREEN}✓${NC} Created subtitles table"
+
 echo
 echo "3. Creating indexes..."
 
@@ -365,6 +512,22 @@ CREATE INDEX IF NOT EXISTS idx_metadata_mentions ON audio_metadata USING gin(tex
 -- Processing queue indexes
 CREATE INDEX IF NOT EXISTS idx_queue_status ON processing_queue(status);
 CREATE INDEX IF NOT EXISTS idx_queue_date ON processing_queue(year, month, date, location);
+
+-- Comments indexes
+CREATE INDEX IF NOT EXISTS idx_comments_meta_id ON comments(meta_id);
+CREATE INDEX IF NOT EXISTS idx_comments_cid ON comments(cid);
+CREATE INDEX IF NOT EXISTS idx_comments_aweme_id ON comments(aweme_id);
+CREATE INDEX IF NOT EXISTS idx_comments_create_time ON comments(create_time);
+CREATE INDEX IF NOT EXISTS idx_comments_digg_count ON comments(digg_count);
+CREATE INDEX IF NOT EXISTS idx_comments_text_search ON comments USING gin(to_tsvector('english', comment_text));
+CREATE INDEX IF NOT EXISTS idx_comments_date ON comments(year, month, date);
+
+-- Subtitles indexes
+CREATE INDEX IF NOT EXISTS idx_subtitles_meta_id ON subtitles(meta_id);
+CREATE INDEX IF NOT EXISTS idx_subtitles_lang ON subtitles(lang);
+CREATE INDEX IF NOT EXISTS idx_subtitles_type ON subtitles(type);
+CREATE INDEX IF NOT EXISTS idx_subtitles_content_search ON subtitles USING gin(to_tsvector('english', content));
+CREATE INDEX IF NOT EXISTS idx_subtitles_date ON subtitles(year, month, date);
 EOF
 echo -e "   ${GREEN}✓${NC} Created indexes"
 
@@ -440,7 +603,9 @@ echo
 echo "Available Tables:"
 echo "  - audio_files: Core audio file information"
 echo "  - transcripts: Audio transcriptions"
-echo "  - audio_metadata: Extended metadata (90+ fields)"
+echo "  - audio_metadata: Extended metadata (100+ fields)"
+echo "  - comments: TikTok comments data with engagement metrics"
+echo "  - subtitles: TikTok subtitle/caption data"
 echo "  - processing_queue: Job processing status tracking"
 echo "  - audio_with_transcripts: Combined view"
 echo

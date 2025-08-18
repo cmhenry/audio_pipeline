@@ -10,6 +10,9 @@
 #SBATCH --output=/scratch/cohenr/logs/process_selective_%j.out
 #SBATCH --error=/scratch/cohenr/error/process_selective_%j.err
 
+# Import .env global configuration
+set -a; source config.env; set +a
+
 # process_audio_selective.sh - Selective audio pipeline processing
 # Allows user to select which stages of the pipeline to run
 
