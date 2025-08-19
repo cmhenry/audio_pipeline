@@ -90,40 +90,40 @@ if [ $? -eq 0 ]; then
     echo "Metadata processing completed successfully"
     
     # Submit rsync transfer job to run after completion
-    TRANSFER_JOB_ID=$(sbatch --dependency=afterok:${SLURM_JOB_ID} \
-        --job-name=transfer_parquet_${SLURM_JOB_ID} \
-        --output=/scratch/cohenr/logs/metadata/transfer_%j.out \
-        --error=/scratch/cohenr/error/metadata/transfer_%j.err \
-        --nodes=1 \
-        --ntasks=1 \
-        --cpus-per-task=4 \
-        --mem=8G \
-        --time=2:00:00 \
-        --export=STAGING_DIR=${STAGING_DIR},DB_HOST=${DB_HOST},RSYNC_USER=${RSYNC_USER},STORAGE_ROOT=${STORAGE_ROOT},SECRETS_DIR=${SECRETS_DIR},AUDIO_PROCESSING_SIF=${AUDIO_PROCESSING_SIF} \
-        --wrap="
-            # Load singularity module
-            module load singularityce
+    # TRANSFER_JOB_ID=$(sbatch --dependency=afterok:${SLURM_JOB_ID} \
+    #     --job-name=transfer_parquet_${SLURM_JOB_ID} \
+    #     --output=/scratch/cohenr/logs/metadata/transfer_%j.out \
+    #     --error=/scratch/cohenr/error/metadata/transfer_%j.err \
+    #     --nodes=1 \
+    #     --ntasks=1 \
+    #     --cpus-per-task=4 \
+    #     --mem=8G \
+    #     --time=2:00:00 \
+    #     --export=STAGING_DIR=${STAGING_DIR},DB_HOST=${DB_HOST},RSYNC_USER=${RSYNC_USER},STORAGE_ROOT=${STORAGE_ROOT},SECRETS_DIR=${SECRETS_DIR},AUDIO_PROCESSING_SIF=${AUDIO_PROCESSING_SIF} \
+    #     --wrap="
+    #         # Load singularity module
+    #         module load singularityce
             
-            # Transfer all parquet files to cloud storage
-            singularity run \
-                --bind ${SECRETS_DIR}:/secrets \
-                --bind ${STAGING_DIR}:/staging \
-                ${AUDIO_PROCESSING_SIF} \
-                rsync -avz --progress -e 'ssh -i /secrets/ent.pem -o StrictHostKeyChecking=no' \
-                /staging/*.parquet \
-                ${RSYNC_USER}@${DB_HOST}:${STORAGE_ROOT}/parquet_files/
+    #         # Transfer all parquet files to cloud storage
+    #         singularity run \
+    #             --bind ${SECRETS_DIR}:/secrets \
+    #             --bind ${STAGING_DIR}:/staging \
+    #             ${AUDIO_PROCESSING_SIF} \
+    #             rsync -avz --progress -e 'ssh -i /secrets/ent.pem -o StrictHostKeyChecking=no' \
+    #             /staging/*.parquet \
+    #             ${RSYNC_USER}@${DB_HOST}:${STORAGE_ROOT}/parquet_files/
             
-            # Clean up staging directory after successful transfer
-            if [ \$? -eq 0 ]; then
-                rm -rf ${STAGING_DIR}
-                echo 'Transfer completed successfully, staging directory cleaned'
-            else
-                echo 'Transfer failed, keeping staging directory for manual intervention'
-                exit 1
-            fi
-        ")
+    #         # Clean up staging directory after successful transfer
+    #         if [ \$? -eq 0 ]; then
+    #             rm -rf ${STAGING_DIR}
+    #             echo 'Transfer completed successfully, staging directory cleaned'
+    #         else
+    #             echo 'Transfer failed, keeping staging directory for manual intervention'
+    #             exit 1
+    #         fi
+    #     ")
     
-    echo "Submitted transfer job: $TRANSFER_JOB_ID"
+    # echo "Submitted transfer job: $TRANSFER_JOB_ID"
     
     # Update database
     singularity run --nv \
