@@ -1,0 +1,498 @@
+[0;34m=== Audio Pipeline Database Schema ===[0m
+Database: [0;32maudio_pipeline[0m
+Generated: Wed Aug 20 17:40:52 UTC 2025
+
+[0;36m1. SCHEMA VERSION[0m
+────────────────────────────────────────
+Current Version: [0;32m3.0[0m
+
+[0;36m2. TABLES OVERVIEW[0m
+────────────────────────────────────────
+ schema |      table_name       |  size  
+--------+-----------------------+--------
+ public | audio_files           | 48 kB
+ public | audio_metadata        | 120 kB
+ public | comments              | 80 kB
+ public | parallel_job_tracking | 64 kB
+ public | processing_queue      | 80 kB
+ public | schema_version        | 24 kB
+ public | subtitles             | 64 kB
+ public | transcripts           | 48 kB
+(8 rows)
+
+
+[0;36m3. TABLE STRUCTURES[0m
+────────────────────────────────────────
+
+[0;32mTABLE: audio_files[0m
+----------------------------------------
+           Column           |            Type             | Max Length | Nullable |      Default       
+----------------------------+-----------------------------+------------+----------+--------------------
+ id                         | uuid                        |            | NO       | uuid_generate_v4()
+ filename                   | character varying           |        255 | NO       | 
+ file_path                  | character varying           |        500 | YES      | 
+ file_size_bytes            | bigint                      |            | YES      | 
+ month                      | integer                     |            | NO       | 
+ date                       | integer                     |            | NO       | 
+ year                       | integer                     |            | NO       | 
+ location                   | character varying           |        100 | YES      | 
+ classification             | character varying           |        100 | YES      | 
+ classification_probability | numeric                     |            | YES      | 
+ created_at                 | timestamp without time zone |            | YES      | CURRENT_TIMESTAMP
+ updated_at                 | timestamp without time zone |            | YES      | CURRENT_TIMESTAMP
+(12 rows)
+
+
+  [1;33mConstraints:[0m
+    • CHECK: audio_files_month_check - CHECK (((month >= 1) AND (month <= 12)))
+    • CHECK: audio_files_date_check - CHECK (((date >= 1) AND (date <= 31)))
+    • CHECK: audio_files_year_check - CHECK ((year >= 2000))
+    • CHECK: audio_files_classification_probability_check - CHECK (((classification_probability >= (0)::numeric) AND (classification_probability <= (1)::numeric)))
+    • PRIMARY KEY: audio_files_pkey - PRIMARY KEY (id)
+    • UNIQUE: audio_files_filename_key - UNIQUE (filename)
+
+  [1;33mIndexes:[0m
+    • audio_files_filename_key
+    • idx_audio_files_date
+    • idx_audio_files_classification
+    • idx_audio_files_filename
+
+[0;32mTABLE: audio_metadata[0m
+----------------------------------------
+           Column           |            Type             | Max Length | Nullable |      Default       
+----------------------------+-----------------------------+------------+----------+--------------------
+ id                         | uuid                        |            | NO       | uuid_generate_v4()
+ audio_file_id              | uuid                        |            | NO       | 
+ meta_id                    | character varying           |        255 | YES      | 
+ poi_id                     | character varying           |        255 | YES      | 
+ meta_createtime            | timestamp without time zone |            | YES      | 
+ meta_scheduletime          | timestamp without time zone |            | YES      | 
+ timestamp                  | bigint                      |            | YES      | 
+ collection_timestamp       | timestamp without time zone |            | YES      | 
+ meta_itemcommentstatus     | integer                     |            | YES      | 
+ meta_diversificationid     | character varying           |        255 | YES      | 
+ meta_secret                | boolean                     |            | YES      | false
+ meta_privateitem           | boolean                     |            | YES      | false
+ meta_duetenabled           | boolean                     |            | YES      | true
+ meta_stitchenabled         | boolean                     |            | YES      | true
+ meta_indexenabled          | boolean                     |            | YES      | true
+ meta_iscontentclassified   | boolean                     |            | YES      | false
+ meta_isaigc                | boolean                     |            | YES      | false
+ meta_isad                  | boolean                     |            | YES      | false
+ meta_isecvideo             | boolean                     |            | YES      | false
+ author_id                  | character varying           |        255 | YES      | 
+ author_uniqueid            | character varying           |        255 | YES      | 
+ author_nickname            | text                        |            | YES      | 
+ author_signature           | text                        |            | YES      | 
+ author_roomid              | character varying           |        255 | YES      | 
+ author_verified            | boolean                     |            | YES      | false
+ author_openfavorite        | boolean                     |            | YES      | true
+ author_commentsetting      | integer                     |            | YES      | 
+ author_duetsetting         | integer                     |            | YES      | 
+ author_stitchsetting       | integer                     |            | YES      | 
+ author_downloadsetting     | integer                     |            | YES      | 
+ author_createtime          | timestamp without time zone |            | YES      | 
+ authorstats_followercount  | bigint                      |            | YES      | 0
+ authorstats_followingcount | bigint                      |            | YES      | 0
+ authorstats_heart          | bigint                      |            | YES      | 0
+ authorstats_heartcount     | bigint                      |            | YES      | 0
+ authorstats_videocount     | bigint                      |            | YES      | 0
+ authorstats_diggcount      | bigint                      |            | YES      | 0
+ authorstats_friendcount    | bigint                      |            | YES      | 0
+ music_id                   | character varying           |        255 | YES      | 
+ music_title                | text                        |            | YES      | 
+ music_authorname           | character varying           |        255 | YES      | 
+ music_album                | text                        |            | YES      | 
+ music_duration             | integer                     |            | YES      | 
+ music_schedulesearchtime   | timestamp without time zone |            | YES      | 
+ music_collected            | boolean                     |            | YES      | false
+ stats_diggcount            | bigint                      |            | YES      | 0
+ stats_sharecount           | bigint                      |            | YES      | 0
+ stats_commentcount         | bigint                      |            | YES      | 0
+ stats_playcount            | bigint                      |            | YES      | 0
+ stats_collectcount         | bigint                      |            | YES      | 0
+ video_height               | integer                     |            | YES      | 
+ video_width                | integer                     |            | YES      | 
+ video_duration             | integer                     |            | YES      | 
+ video_bitrate              | integer                     |            | YES      | 
+ video_ratio                | character varying           |         50 | YES      | 
+ video_encodedtype          | character varying           |         50 | YES      | 
+ video_format               | character varying           |         50 | YES      | 
+ video_videoquality         | character varying           |         50 | YES      | 
+ video_codectype            | character varying           |         50 | YES      | 
+ video_definition           | character varying           |         50 | YES      | 
+ poi_type                   | character varying           |        100 | YES      | 
+ poi_name                   | text                        |            | YES      | 
+ poi_address                | text                        |            | YES      | 
+ poi_city                   | character varying           |        255 | YES      | 
+ poi_citycode               | character varying           |         50 | YES      | 
+ poi_province               | character varying           |        255 | YES      | 
+ poi_country                | character varying           |        255 | YES      | 
+ poi_countrycode            | character varying           |         10 | YES      | 
+ poi_fatherpoiid            | character varying           |        255 | YES      | 
+ poi_fatherpoiname          | text                        |            | YES      | 
+ poi_category               | character varying           |        255 | YES      | 
+ poi_tttypecode             | character varying           |         50 | YES      | 
+ poi_typecode               | character varying           |         50 | YES      | 
+ poi_tttypenametiny         | character varying           |        255 | YES      | 
+ poi_tttypenamemedium       | character varying           |        255 | YES      | 
+ poi_tttypenamesuper        | character varying           |        255 | YES      | 
+ adress_addresscountry      | character varying           |        255 | YES      | 
+ adress_addresslocality     | character varying           |        255 | YES      | 
+ adress_addressregion       | character varying           |        255 | YES      | 
+ adress_streetaddress       | text                        |            | YES      | 
+ statuscode                 | integer                     |            | YES      | 
+ statusmsg                  | text                        |            | YES      | 
+ meta_desc                  | text                        |            | YES      | 
+ meta_locationcreated       | text                        |            | YES      | 
+ processed_desc             | text                        |            | YES      | 
+ description_hash           | character varying           |        255 | YES      | 
+ meta_aigclabeltype         | character varying           |        100 | YES      | 
+ meta_aigcdescription       | text                        |            | YES      | 
+ meta_diversificationlabels | jsonb                       |            | YES      | 
+ meta_serverabversions      | jsonb                       |            | YES      | 
+ meta_suggestedwords        | jsonb                       |            | YES      | 
+ meta_adlabelversion        | jsonb                       |            | YES      | 
+ meta_bainfo                | jsonb                       |            | YES      | 
+ subtitle_subtitle_lang     | jsonb                       |            | YES      | 
+ bitrate_bitrate_info       | jsonb                       |            | YES      | 
+ text_extra_user_mention    | jsonb                       |            | YES      | 
+ text_extra_hashtag_mention | jsonb                       |            | YES      | 
+ warning_warning            | jsonb                       |            | YES      | 
+ duetinfo_duetfromid        | character varying           |        255 | YES      | 
+ pol                        | character varying           |         50 | YES      | 
+ hour                       | integer                     |            | YES      | 
+ country                    | character varying           |        255 | YES      | 
+ raw                        | text                        |            | YES      | 
+ meta_textlanguage          | character varying           |         20 | YES      | 
+ meta_categorytype          | integer                     |            | YES      | 
+ created_at                 | timestamp without time zone |            | YES      | CURRENT_TIMESTAMP
+ updated_at                 | timestamp without time zone |            | YES      | CURRENT_TIMESTAMP
+(107 rows)
+
+
+  [1;33mConstraints:[0m
+    • PRIMARY KEY: audio_metadata_pkey - PRIMARY KEY (id)
+    • UNIQUE: audio_metadata_audio_file_id_key - UNIQUE (audio_file_id)
+    • FOREIGN KEY: audio_metadata_audio_file_id_fkey - FOREIGN KEY (audio_file_id) REFERENCES audio_files(id) ON DELETE CASCADE
+
+  [1;33mIndexes:[0m
+    • audio_metadata_audio_file_id_key
+    • idx_metadata_meta_id
+    • idx_metadata_author_id
+    • idx_metadata_music_id
+    • idx_metadata_poi_id
+    • idx_metadata_createtime
+    • idx_metadata_stats
+    • idx_metadata_country
+    • idx_metadata_author_uniqueid
+    • idx_metadata_hashtags
+    • idx_metadata_mentions
+
+[0;32mTABLE: comments[0m
+----------------------------------------
+             Column             |            Type             | Max Length | Nullable |      Default       
+--------------------------------+-----------------------------+------------+----------+--------------------
+ id                             | uuid                        |            | NO       | uuid_generate_v4()
+ meta_id                        | character varying           |        255 | NO       | 
+ cid                            | character varying           |        255 | NO       | 
+ aweme_id                       | character varying           |        255 | YES      | 
+ comment_text                   | text                        |            | YES      | 
+ create_time                    | timestamp without time zone |            | YES      | 
+ digg_count                     | bigint                      |            | YES      | 0
+ reply_count                    | bigint                      |            | YES      | 0
+ reply_comment_total            | integer                     |            | YES      | 0
+ comment_language               | character varying           |         20 | YES      | 
+ status                         | integer                     |            | YES      | 
+ stick_position                 | integer                     |            | YES      | 
+ is_comment_translatable        | boolean                     |            | YES      | false
+ no_show                        | boolean                     |            | YES      | false
+ user_digged                    | boolean                     |            | YES      | false
+ user_buried                    | boolean                     |            | YES      | false
+ is_author_digged               | boolean                     |            | YES      | false
+ author_pin                     | boolean                     |            | YES      | false
+ reply_id                       | character varying           |        255 | YES      | 
+ reply_to_reply_id              | character varying           |        255 | YES      | 
+ reply_comment                  | text                        |            | YES      | 
+ reply_score                    | numeric                     |            | YES      | 
+ show_more_score                | numeric                     |            | YES      | 
+ uid                            | character varying           |        255 | YES      | 
+ sec_uid                        | character varying           |        255 | YES      | 
+ nickname                       | character varying           |        255 | YES      | 
+ unique_id                      | character varying           |        255 | YES      | 
+ custom_verify                  | character varying           |        255 | YES      | 
+ enterprise_verify_reason       | text                        |            | YES      | 
+ account_labels                 | jsonb                       |            | YES      | 
+ label_list                     | jsonb                       |            | YES      | 
+ sort_tags                      | jsonb                       |            | YES      | 
+ comment_post_item_ids          | jsonb                       |            | YES      | 
+ collect_stat                   | jsonb                       |            | YES      | 
+ ad_cover_url                   | jsonb                       |            | YES      | 
+ advance_feature_item_order     | jsonb                       |            | YES      | 
+ advanced_feature_info          | jsonb                       |            | YES      | 
+ bold_fields                    | jsonb                       |            | YES      | 
+ can_message_follow_status_list | jsonb                       |            | YES      | 
+ can_set_geofencing             | jsonb                       |            | YES      | 
+ cha_list                       | jsonb                       |            | YES      | 
+ cover_url                      | jsonb                       |            | YES      | 
+ events                         | jsonb                       |            | YES      | 
+ followers_detail               | jsonb                       |            | YES      | 
+ geofencing                     | jsonb                       |            | YES      | 
+ homepage_bottom_toast          | jsonb                       |            | YES      | 
+ item_list                      | jsonb                       |            | YES      | 
+ mutual_relation_avatars        | jsonb                       |            | YES      | 
+ need_points                    | jsonb                       |            | YES      | 
+ platform_sync_info             | jsonb                       |            | YES      | 
+ relative_users                 | jsonb                       |            | YES      | 
+ search_highlight               | jsonb                       |            | YES      | 
+ shield_edit_field_info         | jsonb                       |            | YES      | 
+ type_label                     | jsonb                       |            | YES      | 
+ user_profile_guide             | jsonb                       |            | YES      | 
+ user_tags                      | jsonb                       |            | YES      | 
+ white_cover_url                | jsonb                       |            | YES      | 
+ collection_timestamp           | timestamp without time zone |            | YES      | 
+ hash_unique_id                 | character varying           |        255 | YES      | 
+ total                          | integer                     |            | YES      | 
+ year                           | integer                     |            | YES      | 
+ month                          | integer                     |            | YES      | 
+ date                           | integer                     |            | YES      | 
+ created_at                     | timestamp without time zone |            | YES      | CURRENT_TIMESTAMP
+ updated_at                     | timestamp without time zone |            | YES      | CURRENT_TIMESTAMP
+(65 rows)
+
+
+  [1;33mConstraints:[0m
+    • PRIMARY KEY: comments_pkey - PRIMARY KEY (id)
+
+  [1;33mIndexes:[0m
+    • idx_comments_meta_id
+    • idx_comments_cid
+    • idx_comments_aweme_id
+    • idx_comments_create_time
+    • idx_comments_digg_count
+    • idx_comments_text_search
+    • idx_comments_date
+
+[0;32mTABLE: parallel_job_tracking[0m
+----------------------------------------
+      Column      |            Type             | Max Length | Nullable |           Default            
+------------------+-----------------------------+------------+----------+------------------------------
+ id               | uuid                        |            | NO       | uuid_generate_v4()
+ master_job_id    | integer                     |            | NO       | 
+ worker_job_id    | integer                     |            | YES      | 
+ date_str         | character varying           |         10 | NO       | 
+ timestamp_str    | character varying           |          5 | NO       | 
+ tar_filename     | character varying           |        255 | NO       | 
+ tar_file_path    | character varying           |        500 | NO       | 
+ status           | character varying           |         50 | YES      | 'pending'::character varying
+ processing_start | timestamp without time zone |            | YES      | 
+ processing_end   | timestamp without time zone |            | YES      | 
+ files_processed  | integer                     |            | YES      | 0
+ files_failed     | integer                     |            | YES      | 0
+ error_message    | text                        |            | YES      | 
+ gpu_node         | character varying           |        100 | YES      | 
+ temp_dir_path    | character varying           |        500 | YES      | 
+ created_at       | timestamp without time zone |            | YES      | CURRENT_TIMESTAMP
+ updated_at       | timestamp without time zone |            | YES      | CURRENT_TIMESTAMP
+(17 rows)
+
+
+  [1;33mConstraints:[0m
+    • PRIMARY KEY: parallel_job_tracking_pkey - PRIMARY KEY (id)
+    • UNIQUE: parallel_job_tracking_master_job_id_tar_filename_key - UNIQUE (master_job_id, tar_filename)
+
+  [1;33mIndexes:[0m
+    • parallel_job_tracking_master_job_id_tar_filename_key
+    • idx_parallel_jobs_master_id
+    • idx_parallel_jobs_worker_id
+    • idx_parallel_jobs_status
+    • idx_parallel_jobs_date
+    • idx_parallel_jobs_timestamp
+
+[0;32mTABLE: processing_queue[0m
+----------------------------------------
+      Column      |            Type             | Max Length | Nullable |           Default            
+------------------+-----------------------------+------------+----------+------------------------------
+ id               | uuid                        |            | NO       | uuid_generate_v4()
+ year             | integer                     |            | NO       | 
+ month            | integer                     |            | NO       | 
+ date             | integer                     |            | NO       | 
+ location         | character varying           |        100 | YES      | 
+ status           | character varying           |         50 | YES      | 'pending'::character varying
+ transfer_start   | timestamp without time zone |            | YES      | 
+ transfer_end     | timestamp without time zone |            | YES      | 
+ transfer_task_id | character varying           |        255 | YES      | 
+ processing_start | timestamp without time zone |            | YES      | 
+ processing_end   | timestamp without time zone |            | YES      | 
+ slurm_job_id     | integer                     |            | YES      | 
+ error_message    | text                        |            | YES      | 
+ created_at       | timestamp without time zone |            | YES      | CURRENT_TIMESTAMP
+ updated_at       | timestamp without time zone |            | YES      | CURRENT_TIMESTAMP
+(15 rows)
+
+
+  [1;33mConstraints:[0m
+    • PRIMARY KEY: processing_queue_pkey - PRIMARY KEY (id)
+    • UNIQUE: processing_queue_year_month_date_key - UNIQUE (year, month, date)
+
+  [1;33mIndexes:[0m
+    • processing_queue_year_month_date_key
+    • idx_queue_status
+    • idx_queue_date
+
+[0;32mTABLE: subtitles[0m
+----------------------------------------
+        Column        |            Type             | Max Length | Nullable |      Default       
+----------------------+-----------------------------+------------+----------+--------------------
+ id                   | uuid                        |            | NO       | uuid_generate_v4()
+ meta_id              | character varying           |        255 | NO       | 
+ content              | text                        |            | YES      | 
+ lang                 | character varying           |         20 | YES      | 
+ type                 | character varying           |         50 | YES      | 
+ rest                 | text                        |            | YES      | 
+ collection_timestamp | timestamp without time zone |            | YES      | 
+ hash_unique_id       | character varying           |        255 | YES      | 
+ year                 | integer                     |            | YES      | 
+ month                | integer                     |            | YES      | 
+ date                 | integer                     |            | YES      | 
+ created_at           | timestamp without time zone |            | YES      | CURRENT_TIMESTAMP
+ updated_at           | timestamp without time zone |            | YES      | CURRENT_TIMESTAMP
+(13 rows)
+
+
+  [1;33mConstraints:[0m
+    • PRIMARY KEY: subtitles_pkey - PRIMARY KEY (id)
+
+  [1;33mIndexes:[0m
+    • idx_subtitles_meta_id
+    • idx_subtitles_lang
+    • idx_subtitles_type
+    • idx_subtitles_content_search
+    • idx_subtitles_date
+
+[0;32mTABLE: transcripts[0m
+----------------------------------------
+      Column      |            Type             | Max Length | Nullable |      Default       
+------------------+-----------------------------+------------+----------+--------------------
+ id               | uuid                        |            | NO       | uuid_generate_v4()
+ audio_file_id    | uuid                        |            | NO       | 
+ transcript_text  | text                        |            | NO       | 
+ word_count       | integer                     |            | YES      | 
+ duration_seconds | numeric                     |            | YES      | 
+ created_at       | timestamp without time zone |            | YES      | CURRENT_TIMESTAMP
+(6 rows)
+
+
+  [1;33mConstraints:[0m
+    • PRIMARY KEY: transcripts_pkey - PRIMARY KEY (id)
+    • UNIQUE: transcripts_audio_file_id_key - UNIQUE (audio_file_id)
+    • FOREIGN KEY: transcripts_audio_file_id_fkey - FOREIGN KEY (audio_file_id) REFERENCES audio_files(id) ON DELETE CASCADE
+
+  [1;33mIndexes:[0m
+    • transcripts_audio_file_id_key
+    • idx_transcripts_audio_file
+    • idx_transcripts_text_search
+
+
+[0;36m4. FOREIGN KEY RELATIONSHIPS[0m
+────────────────────────────────────────
+  [0;32maudio_metadata.audio_file_id → audio_files.id[0m (ON DELETE CASCADE)
+  [0;32mtranscripts.audio_file_id → audio_files.id[0m (ON DELETE CASCADE)
+
+[0;36m5. VIEWS[0m
+────────────────────────────────────────
+
+[0;32mVIEW: audio_with_transcripts[0m
+----------------------------------------
+           Column           |            Type             
+----------------------------+-----------------------------
+ id                         | uuid
+ filename                   | character varying
+ file_path                  | character varying
+ file_size_bytes            | bigint
+ month                      | integer
+ date                       | integer
+ year                       | integer
+ location                   | character varying
+ classification             | character varying
+ classification_probability | numeric
+ transcript_text            | text
+ word_count                 | integer
+ duration_seconds           | numeric
+ meta_id                    | character varying
+ author_nickname            | text
+ author_uniqueid            | character varying
+ music_title                | text
+ stats_playcount            | bigint
+ stats_diggcount            | bigint
+ stats_commentcount         | bigint
+ video_duration             | integer
+ country                    | character varying
+ poi_name                   | text
+ poi_city                   | character varying
+ meta_desc                  | text
+ created_at                 | timestamp without time zone
+ updated_at                 | timestamp without time zone
+(27 rows)
+
+
+
+[0;36m6. FUNCTIONS[0m
+────────────────────────────────────────
+  • [0;32mupdate_parallel_progress()[0m
+  • [0;32mupdate_updated_at_column()[0m
+  • [0;32muuid_generate_v1()[0m
+  • [0;32muuid_generate_v1mc()[0m
+  • [0;32muuid_generate_v3()[0m
+  • [0;32muuid_generate_v4()[0m
+  • [0;32muuid_generate_v5()[0m
+  • [0;32muuid_nil()[0m
+  • [0;32muuid_ns_dns()[0m
+  • [0;32muuid_ns_oid()[0m
+  • [0;32muuid_ns_url()[0m
+  • [0;32muuid_ns_x500()[0m
+
+[0;36m7. TRIGGERS[0m
+────────────────────────────────────────
+  • [0;32mupdate_audio_files_updated_at ON audio_files (UPDATE)[0m
+  • [0;32mupdate_audio_metadata_updated_at ON audio_metadata (UPDATE)[0m
+  • [0;32mupdate_comments_updated_at ON comments (UPDATE)[0m
+  • [0;32mupdate_processing_queue_updated_at ON processing_queue (UPDATE)[0m
+  • [0;32mupdate_subtitles_updated_at ON subtitles (UPDATE)[0m
+
+
+[0;36m8. DATA TYPES USED[0m
+────────────────────────────────────────
+          data_type          | usage_count 
+-----------------------------+-------------
+ character varying           |          75
+ integer                     |          40
+ jsonb                       |          38
+ timestamp without time zone |          30
+ text                        |          27
+ bigint                      |          20
+ boolean                     |          18
+ uuid                        |          10
+ numeric                     |           6
+(9 rows)
+
+
+[0;36m9. TABLE ROW COUNTS[0m
+────────────────────────────────────────
+  audio_files:                            0 rows
+  audio_metadata:                         0 rows
+  comments:                               0 rows
+  parallel_job_tracking:                  0 rows
+  processing_queue:                       0 rows
+  subtitles:                              0 rows
+  transcripts:                            0 rows
+
+[0;36m10. DATABASE SIZE[0m
+────────────────────────────────────────
+    Database    |  Size   
+----------------+---------
+ audio_pipeline | 9873 kB
+(1 row)
+
+
+[0;35m=== End of Schema Report ===[0m

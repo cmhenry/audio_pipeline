@@ -61,7 +61,7 @@ class HPCTimestampedAudioProcessor:
     
         """
         
-        logger.info(f"Processing month director {self.staging_dir}")
+        logger.info(f"Processing month directory {self.staging_dir}")
         
         try:
             logger.info("Processing metadata, subtitles, and comments...")

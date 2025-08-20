@@ -94,31 +94,44 @@ class ProcessingQueueManager:
     
     def update_transfer_status(self, year, month, day, status, **kwargs):
         """Update transfer status for a specific date"""
-        query = """
-            UPDATE processing_queue 
-            SET status = %s, updated_at = NOW()
-        """
-        params = [status, year, month, day]
+        # Build SET clauses dynamically
+        set_clauses = ["status = %s", "updated_at = NOW()"]
+        params = [status]
         
-        # Add optional fields
+        # Add optional fields based on status and kwargs
         if status == 'transferring' and 'transfer_start' not in kwargs:
-            query = query.replace("updated_at = NOW()", "updated_at = NOW(), transfer_start = NOW()")
+            set_clauses.append("transfer_start = NOW()")
         
         if 'transfer_task_id' in kwargs:
-            query = query.replace("SET status", "SET status = %s, transfer_task_id")
-            params.insert(1, kwargs['transfer_task_id'])
+            set_clauses.append("transfer_task_id = %s")
+            params.append(kwargs['transfer_task_id'])
         
-        if 'transfer_end' in kwargs:
-            query = query.replace("updated_at = NOW()", "updated_at = NOW(), transfer_end = NOW()")
+        if 'transfer_end' in kwargs or status == 'ready_to_process':
+            set_clauses.append("transfer_end = NOW()")
         
         if 'error_message' in kwargs:
-            query = query.replace("SET status", "SET status = %s, error_message")
-            params.insert(1, kwargs['error_message'])
+            set_clauses.append("error_message = %s")
+            params.append(kwargs['error_message'])
         
-        query += " WHERE year = %s AND month = %s AND date = %s"
+        # Build the complete query
+        query = f"""
+            UPDATE processing_queue 
+            SET {', '.join(set_clauses)}
+            WHERE year = %s AND month = %s AND date = %s
+        """
         
-        self.db.execute(query, params)
-        logger.info(f"Updated {year}-{month:02d}-{day:02d} to status: {status}")
+        # Add WHERE clause parameters
+        params.extend([year, month, day])
+        
+        try:
+            result = self.db.execute(query, params)
+            logger.info(f"Updated {year}-{month:02d}-{day:02d} to status: {status}")
+            return result
+        except Exception as e:
+            logger.error(f"Failed to update transfer status: {e}")
+            logger.error(f"Query: {query}")
+            logger.error(f"Params: {params}")
+            raise
     
     def update_processing_status(self, year, month, day, status, **kwargs):
         """Update processing status for a specific date"""
