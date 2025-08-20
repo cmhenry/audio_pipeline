@@ -12,7 +12,6 @@ import gc
 import re
 from typing import List, Dict, Tuple
 from sqlalchemy import create_engine
-from psycopg2.extras import execute_values
 
 # Source storage_manager for rsync support
 from storage_manager import create_storage_manager
@@ -73,6 +72,131 @@ class HPCTimestampedAudioProcessor:
             logger.warning(f"Could not extract date from filename: {filename}")
             # Return default values if no date found
             return self.year, self.month, self.day
+        
+    def process_month(self):
+        """Processing stage for one month of parquet metadata files
+    
+        """
+        
+        logger.info(f"Processing month directory {self.staging_dir}")
+        
+        try:
+            logger.info("Processing metadata, subtitles, and comments...")
+            self.process_month_metadata()
+            
+            # Update processing stats
+            self._update_processing_stats()
+            
+            logger.info(f"Month metadata processing complete. Processed: {self.processed_count}, Failed: {self.failed_count}")
+            
+        except Exception as e:
+            logger.error(f"Month processing failed: {e}")
+            raise
+  
+    def process_month_metadata(self):
+        """Process all metadata and comments files for the month"""
+        logger.info(f"Searching for parquet files in: {self.staging_dir}")
+        logger.info(f"Directory exists: {self.staging_dir.exists()}")
+        
+        # List directory contents for debugging
+        # if self.staging_dir.exists():
+        #     logger.info(f"Directory contents: {list(self.staging_dir.iterdir())}")
+        
+        # Collect all parquet files (fix glob patterns - remove regex ^ syntax)
+        metadata_files = sorted(self.staging_dir.glob("*_metadata.parquet"))
+        comments_files = sorted(self.staging_dir.glob("*_comments.parquet"))
+        subtitles_files = sorted(self.staging_dir.glob("*_subtitles.parquet"))
+        
+        logger.info(f"Found {len(metadata_files)} metadata, {len(comments_files)} comments, "
+                   f"{len(subtitles_files)} subtitles files")
+        
+        # Process metadata
+        if metadata_files:
+            try:
+                # Read all metadata files into single dataframe
+                metadata_dfs = []
+                for f in metadata_files:
+                    try:
+                        df = pd.read_parquet(f)
+                        
+                        # Extract date from filename and add columns
+                        year, month, day = self._extract_date_from_filename(f.name)
+                        df['year'] = year
+                        df['month'] = month
+                        df['date'] = day
+                        
+                        logger.info(f"Processed {f.name}: {len(df)} rows with date {year}-{month:02d}-{day:02d}")
+                        metadata_dfs.append(df)
+                    except Exception as e:
+                        logger.error(f"Failed to read {f.name}: {e}")
+                
+                if metadata_dfs:
+                    combined_metadata = pd.concat(metadata_dfs, ignore_index=True)
+                    logger.info(f"Combined metadata: {len(combined_metadata)} rows")
+                    
+                    # Store in database
+                    self._store_metadata_batch(combined_metadata)
+                    
+            except Exception as e:
+                logger.error(f"Failed to process metadata: {e}")
+        
+        # Process comments similarly
+        if comments_files:
+            try:
+                comments_dfs = []
+                for f in comments_files:
+                    try:
+                        df = pd.read_parquet(f)
+                        
+                        # Extract date from filename and add columns
+                        year, month, day = self._extract_date_from_filename(f.name)
+                        df['year'] = year
+                        df['month'] = month
+                        df['date'] = day
+                        
+                        logger.info(f"Processed {f.name}: {len(df)} rows with date {year}-{month:02d}-{day:02d}")
+                        comments_dfs.append(df)
+                    except Exception as e:
+                        logger.error(f"Failed to read {f.name}: {e}")
+                
+                if comments_dfs:
+                    combined_comments = pd.concat(comments_dfs, ignore_index=True)
+                    logger.info(f"Combined comments: {len(combined_comments)} rows")
+                    
+                    # Store comments
+                    self._store_comments_batch(combined_comments)
+                    
+            except Exception as e:
+                logger.error(f"Failed to process comments: {e}")
+        
+        # Process subtitles similarly
+        if subtitles_files:
+            try:
+                subtitles_dfs = []
+                for f in subtitles_files:
+                    try:
+                        df = pd.read_parquet(f)
+                        
+                        # Extract date from filename and add columns
+                        year, month, day = self._extract_date_from_filename(f.name)
+                        df['year'] = year
+                        df['month'] = month
+                        df['date'] = day
+                        
+                        logger.info(f"Processed {f.name}: {len(df)} rows with date {year}-{month:02d}-{day:02d}")
+                        subtitles_dfs.append(df)
+                    except Exception as e:
+                        logger.error(f"Failed to read {f.name}: {e}")
+                
+                if subtitles_dfs:
+                    combined_subtitles = pd.concat(subtitles_dfs, ignore_index=True)
+                    logger.info(f"Combined subtitles: {len(combined_subtitles)} rows")
+                    
+                    # Store subtitles
+                    self._store_subtitles_batch(combined_subtitles)
+                    
+            except Exception as e:
+                logger.error(f"Failed to process subtitles: {e}")
     
     def _store_metadata_batch(self, metadata_df: pd.DataFrame):
         """Store metadata in database using UPSERT to handle duplicates"""
@@ -248,6 +372,7 @@ class HPCTimestampedAudioProcessor:
             logger.error(f"Failed to upsert subtitles: {e}")
             self.db.rollback()
             raise
+    
     
     def _update_processing_stats(self):
         """Update processing statistics in database"""
