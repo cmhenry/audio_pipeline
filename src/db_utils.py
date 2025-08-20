@@ -202,7 +202,7 @@ class ProcessingQueueManager:
         result = self.db.execute(query, [year, month, day])
         return result[0] if result else None
     
-    def add_queue_entry(self, year, month, day, location, skip_existing=True):
+    def add_queue_entry(self, year, month, day, location="zurich", skip_existing=True):
         """Add entry to processing queue"""
         if skip_existing:
             # Check based on the ACTUAL unique constraint (year, month, date only)
