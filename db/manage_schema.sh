@@ -176,10 +176,10 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     -- Core metadata
     meta_id VARCHAR(255),
     poi_id VARCHAR(255),
-    meta_createtime TIMESTAMP,
-    meta_scheduletime TIMESTAMP,
+    meta_createtime BIGINT,
+    meta_scheduletime BIGINT,
     timestamp BIGINT,
-    collection_timestamp TIMESTAMP,
+    collection_timestamp BIGINT,
 
     -- Content status and settings
     meta_itemcommentstatus INTEGER,
@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     author_duetsetting INTEGER,
     author_stitchsetting INTEGER,
     author_downloadsetting INTEGER,
-    author_createtime TIMESTAMP,
+    author_createtime BIGINT,
     
     -- Author statistics (from METADATA_NAMES.md)
     authorstats_followercount BIGINT DEFAULT 0,
@@ -223,7 +223,7 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     music_authorname VARCHAR(255),
     music_album TEXT,
     music_duration INTEGER,
-    music_schedulesearchtime TIMESTAMP,
+    music_schedulesearchtime BIGINT,
     music_collected BOOLEAN DEFAULT FALSE,
 
     -- Statistics
@@ -363,7 +363,7 @@ CREATE TABLE IF NOT EXISTS comments (
     cid VARCHAR(255) NOT NULL,
     aweme_id VARCHAR(255),
     comment_text TEXT,
-    create_time TIMESTAMP,
+    create_time BIGINT,
     
     -- Comment engagement stats
     digg_count BIGINT DEFAULT 0,
