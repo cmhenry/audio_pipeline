@@ -205,25 +205,41 @@ class ProcessingQueueManager:
     def add_queue_entry(self, year, month, day, location, skip_existing=True):
         """Add entry to processing queue"""
         if skip_existing:
-            # Check if entry already exists
+            # Check based on the ACTUAL unique constraint (year, month, date only)
             query = """
-                SELECT id FROM processing_queue 
-                WHERE year = %s AND month = %s AND date = %s AND location = %s
+                SELECT id, location FROM processing_queue 
+                WHERE year = %s AND month = %s AND date = %s
             """
             
-            if self.db.execute(query, [year, month, day, location]):
-                logger.info(f"Entry already exists: {year}-{month:02d}-{day:02d} {location}")
-                return False
+            existing = self.db.execute(query, [year, month, day])
+            if existing:
+                existing_location = existing[0]['location']
+                if existing_location == location:
+                    logger.info(f"Entry already exists: {year}-{month:02d}-{day:02d} {location}")
+                    return False
+                else:
+                    logger.warning(f"Date {year}-{month:02d}-{day:02d} already exists with different location: {existing_location} != {location}")
+                    return False
         
-        # Insert new entry
+        # Insert new entry with conflict handling
         query = """
             INSERT INTO processing_queue (year, month, date, location, status, created_at)
             VALUES (%s, %s, %s, %s, 'pending', NOW())
+            ON CONFLICT (year, month, date) DO NOTHING
+            RETURNING id
         """
         
-        self.db.execute(query, [year, month, day, location])
-        logger.info(f"Added queue entry: {year}-{month:02d}-{day:02d} {location}")
-        return True
+        try:
+            result = self.db.execute(query, [year, month, day, location])
+            if result:
+                logger.info(f"Added queue entry: {year}-{month:02d}-{day:02d} {location}")
+                return True
+            else:
+                logger.info(f"Entry already exists (conflict): {year}-{month:02d}-{day:02d}")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to add queue entry: {e}")
+            raise
     
     def diagnose_schema(self):
         """Diagnose table schema and data types"""
