@@ -7,7 +7,7 @@ DB_USER="audio_user"
 DB_PASSWORD="audio_password"  # Should match setup script or be updated
 
 # Schema version for future migrations
-SCHEMA_VERSION="3.0"
+SCHEMA_VERSION="3.1"
 
 # Color codes
 RED='\033[0;31m'
@@ -74,6 +74,7 @@ case $choice in
         
         # Drop all objects
         PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /dev/null 2>&1
+DROP VIEW IF EXISTS audio_with_metadata CASCADE;
 DROP VIEW IF EXISTS audio_with_transcripts CASCADE;
 DROP TABLE IF EXISTS comments CASCADE;
 DROP TABLE IF EXISTS subtitles CASCADE;
@@ -81,6 +82,7 @@ DROP TABLE IF EXISTS processing_queue CASCADE;
 DROP TABLE IF EXISTS audio_metadata CASCADE;
 DROP TABLE IF EXISTS transcripts CASCADE;
 DROP TABLE IF EXISTS audio_files CASCADE;
+DROP TABLE IF EXISTS schema_version CASCADE;
 DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
 EOF
         echo -e "   ${GREEN}✓${NC} Existing schema dropped"
@@ -133,6 +135,7 @@ echo -e "   ${GREEN}✓${NC} Created update_updated_at function"
 PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /dev/null 2>&1
 CREATE TABLE IF NOT EXISTS audio_files (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    meta_id VARCHAR(255) NOT NULL,
     filename VARCHAR(255) NOT NULL UNIQUE,
     file_path VARCHAR(500),
     file_size_bytes BIGINT,
@@ -143,7 +146,8 @@ CREATE TABLE IF NOT EXISTS audio_files (
     classification VARCHAR(100),
     classification_probability DECIMAL(3,2) CHECK (classification_probability >= 0 AND classification_probability <= 1),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(meta_id, year, month, date)
 );
 
 -- Add trigger if not exists
@@ -167,14 +171,19 @@ CREATE TABLE IF NOT EXISTS transcripts (
 EOF
 echo -e "   ${GREEN}✓${NC} Created transcripts table"
 
-# Create audio_metadata table
+# Create audio_metadata table (no foreign key constraint, uses business key)
 PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /dev/null 2>&1
 CREATE TABLE IF NOT EXISTS audio_metadata (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    audio_file_id UUID NOT NULL UNIQUE REFERENCES audio_files(id) ON DELETE CASCADE,
+    audio_file_id UUID,
 
-    -- Core metadata
-    meta_id VARCHAR(255),
+    -- Core metadata (business key)
+    meta_id VARCHAR(255) NOT NULL,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL, 
+    date INTEGER NOT NULL,
+    
+    -- Other metadata fields
     poi_id VARCHAR(255),
     meta_createtime BIGINT,
     meta_scheduletime BIGINT,
@@ -208,7 +217,7 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     author_downloadsetting INTEGER,
     author_createtime BIGINT,
     
-    -- Author statistics (from METADATA_NAMES.md)
+    -- Author statistics
     authorstats_followercount BIGINT DEFAULT 0,
     authorstats_followingcount BIGINT DEFAULT 0,
     authorstats_heart BIGINT DEFAULT 0,
@@ -306,14 +315,12 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     meta_textlanguage VARCHAR(20),
     meta_categorytype INTEGER,
 
-    -- Date fields for matching with audio_files
-    year INTEGER,
-    month INTEGER, 
-    date INTEGER,
-
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Business key unique constraint
+    UNIQUE(meta_id, year, month, date)
 );
 
 -- Add trigger if not exists
@@ -358,6 +365,9 @@ PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /de
 CREATE TABLE IF NOT EXISTS comments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     meta_id VARCHAR(255) NOT NULL,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    date INTEGER NOT NULL,
     
     -- Core comment information
     cid VARCHAR(255) NOT NULL,
@@ -434,13 +444,13 @@ CREATE TABLE IF NOT EXISTS comments (
     collection_timestamp TIMESTAMP,
     hash_unique_id VARCHAR(255),
     total INTEGER,
-    year INTEGER,
-    month INTEGER,
-    date INTEGER,
     
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Business key unique constraint for each comment
+    UNIQUE(cid, meta_id, year, month, date)
 );
 
 -- Add trigger if not exists
@@ -456,6 +466,9 @@ PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /de
 CREATE TABLE IF NOT EXISTS subtitles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     meta_id VARCHAR(255) NOT NULL,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    date INTEGER NOT NULL,
     
     -- Core subtitle information
     content TEXT,
@@ -468,9 +481,6 @@ CREATE TABLE IF NOT EXISTS subtitles (
     -- Processing metadata
     collection_timestamp TIMESTAMP,
     hash_unique_id VARCHAR(255),
-    year INTEGER,
-    month INTEGER,
-    date INTEGER,
     
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -491,6 +501,8 @@ echo "3. Creating indexes..."
 # Create indexes
 PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /dev/null 2>&1
 -- Audio files indexes
+CREATE INDEX IF NOT EXISTS idx_audio_files_business_key ON audio_files(meta_id, year, month, date);
+CREATE INDEX IF NOT EXISTS idx_audio_files_meta_id ON audio_files(meta_id);
 CREATE INDEX IF NOT EXISTS idx_audio_files_date ON audio_files(year, month, date);
 CREATE INDEX IF NOT EXISTS idx_audio_files_classification ON audio_files(classification);
 CREATE INDEX IF NOT EXISTS idx_audio_files_filename ON audio_files(filename);
@@ -500,7 +512,8 @@ CREATE INDEX IF NOT EXISTS idx_transcripts_audio_file ON transcripts(audio_file_
 CREATE INDEX IF NOT EXISTS idx_transcripts_text_search 
     ON transcripts USING gin(to_tsvector('english', transcript_text));
 
--- Metadata indexes
+-- Metadata indexes (business key focused)
+CREATE INDEX IF NOT EXISTS idx_metadata_business_key ON audio_metadata(meta_id, year, month, date);
 CREATE INDEX IF NOT EXISTS idx_metadata_meta_id ON audio_metadata(meta_id);
 CREATE INDEX IF NOT EXISTS idx_metadata_author_id ON audio_metadata(author_id);
 CREATE INDEX IF NOT EXISTS idx_metadata_music_id ON audio_metadata(music_id);
@@ -511,14 +524,15 @@ CREATE INDEX IF NOT EXISTS idx_metadata_country ON audio_metadata(country);
 CREATE INDEX IF NOT EXISTS idx_metadata_author_uniqueid ON audio_metadata(author_uniqueid);
 
 -- TEXT indexes
-CREATE INDEX IF NOT EXISTS idx_metadata_hashtags ON audio_metadata USING gin(text_extra_hashtag_mention);
-CREATE INDEX IF NOT EXISTS idx_metadata_mentions ON audio_metadata USING gin(text_extra_user_mention);
+CREATE INDEX IF NOT EXISTS idx_metadata_hashtags ON audio_metadata USING gin(to_tsvector('english', text_extra_hashtag_mention));
+CREATE INDEX IF NOT EXISTS idx_metadata_mentions ON audio_metadata USING gin(to_tsvector('english', text_extra_user_mention));
 
 -- Processing queue indexes
 CREATE INDEX IF NOT EXISTS idx_queue_status ON processing_queue(status);
-CREATE INDEX IF NOT EXISTS idx_queue_date ON processing_queue(year, month, date, location);
+CREATE INDEX IF NOT EXISTS idx_queue_date ON processing_queue(year, month, date);
 
--- Comments indexes
+-- Comments indexes (business key focused)
+CREATE INDEX IF NOT EXISTS idx_comments_business_key ON comments(meta_id, year, month, date);
 CREATE INDEX IF NOT EXISTS idx_comments_meta_id ON comments(meta_id);
 CREATE INDEX IF NOT EXISTS idx_comments_cid ON comments(cid);
 CREATE INDEX IF NOT EXISTS idx_comments_aweme_id ON comments(aweme_id);
@@ -527,7 +541,8 @@ CREATE INDEX IF NOT EXISTS idx_comments_digg_count ON comments(digg_count);
 CREATE INDEX IF NOT EXISTS idx_comments_text_search ON comments USING gin(to_tsvector('english', comment_text));
 CREATE INDEX IF NOT EXISTS idx_comments_date ON comments(year, month, date);
 
--- Subtitles indexes
+-- Subtitles indexes (business key focused)
+CREATE INDEX IF NOT EXISTS idx_subtitles_business_key ON subtitles(meta_id, year, month, date);
 CREATE INDEX IF NOT EXISTS idx_subtitles_meta_id ON subtitles(meta_id);
 CREATE INDEX IF NOT EXISTS idx_subtitles_lang ON subtitles(lang);
 CREATE INDEX IF NOT EXISTS idx_subtitles_type ON subtitles(type);
@@ -539,24 +554,27 @@ echo -e "   ${GREEN}✓${NC} Created indexes"
 echo
 echo "4. Creating views..."
 
-# Create view
+# Create view that uses business key joins
 PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /dev/null 2>&1
-CREATE OR REPLACE VIEW audio_with_transcripts AS
+CREATE OR REPLACE VIEW audio_with_metadata AS
 SELECT
-    a.id,
+    m.meta_id,
+    m.year,
+    m.month,
+    m.date,
+    -- Audio file info (NULL if not processed yet)
+    a.id as audio_file_id,
     a.filename,
     a.file_path,
     a.file_size_bytes,
-    a.month,
-    a.date,
-    a.year,
     a.location,
     a.classification,
     a.classification_probability,
+    -- Transcript info (NULL if not processed yet)
     t.transcript_text,
     t.word_count,
     t.duration_seconds,
-    m.meta_id,
+    -- Metadata from parquet
     m.author_nickname,
     m.author_uniqueid,
     m.music_title,
@@ -568,13 +586,47 @@ SELECT
     m.poi_name,
     m.poi_city,
     m.meta_desc,
-    a.created_at,
-    a.updated_at
-FROM audio_files a
-LEFT JOIN transcripts t ON a.id = t.audio_file_id
-LEFT JOIN audio_metadata m ON a.id = m.audio_file_id;
+    -- Counts from related tables
+    COALESCE(c.comment_count, 0) as comment_count,
+    COALESCE(s.subtitle_count, 0) as subtitle_count,
+    -- Status flags
+    CASE WHEN a.id IS NOT NULL THEN true ELSE false END as audio_file_processed,
+    CASE WHEN t.id IS NOT NULL THEN true ELSE false END as transcript_processed,
+    -- Timestamps
+    m.created_at as metadata_created_at,
+    a.created_at as audio_file_created_at
+FROM audio_metadata m
+LEFT JOIN audio_files a ON (
+    m.meta_id = a.meta_id 
+    AND m.year = a.year 
+    AND m.month = a.month 
+    AND m.date = a.date
+)
+LEFT JOIN transcripts t ON (
+    a.id = t.audio_file_id
+)
+LEFT JOIN (
+    SELECT meta_id, year, month, date, COUNT(*) as comment_count
+    FROM comments 
+    GROUP BY meta_id, year, month, date
+) c ON (
+    m.meta_id = c.meta_id 
+    AND m.year = c.year 
+    AND m.month = c.month 
+    AND m.date = c.date
+)
+LEFT JOIN (
+    SELECT meta_id, year, month, date, COUNT(*) as subtitle_count
+    FROM subtitles 
+    GROUP BY meta_id, year, month, date
+) s ON (
+    m.meta_id = s.meta_id 
+    AND m.year = s.year 
+    AND m.month = s.month 
+    AND m.date = s.date
+);
 EOF
-echo -e "   ${GREEN}✓${NC} Created audio_with_transcripts view"
+echo -e "   ${GREEN}✓${NC} Created audio_with_metadata view"
 
 # Store schema version
 PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << EOF > /dev/null 2>&1
@@ -606,13 +658,15 @@ SELECT 'Current Version: ' || MAX(version) FROM schema_version;
 
 echo
 echo "Available Tables:"
-echo "  - audio_files: Core audio file information"
-echo "  - transcripts: Audio transcriptions"
-echo "  - audio_metadata: Extended metadata (100+ fields)"
-echo "  - comments: TikTok comments data with engagement metrics"
-echo "  - subtitles: TikTok subtitle/caption data"
+echo "  - audio_files: Core audio file information (linked by meta_id + date)"
+echo "  - transcripts: Audio transcriptions (linked to audio_files)"
+echo "  - audio_metadata: Extended metadata (independent, linked by meta_id + date)"
+echo "  - comments: TikTok comments data (independent, linked by meta_id + date)"
+echo "  - subtitles: TikTok subtitle/caption data (independent, linked by meta_id + date)"
 echo "  - processing_queue: Job processing status tracking"
-echo "  - audio_with_transcripts: Combined view"
+echo "  - audio_with_metadata: Combined view using business key joins"
+echo
+echo "Business Key: (meta_id, year, month, date) uniquely identifies related records"
 echo
 echo "To modify the schema:"
 echo "  1. Edit this script with new changes"
