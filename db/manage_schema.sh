@@ -306,6 +306,11 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     meta_textlanguage VARCHAR(20),
     meta_categorytype INTEGER,
 
+    -- Date fields for matching with audio_files
+    year INTEGER,
+    month INTEGER, 
+    date INTEGER,
+
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

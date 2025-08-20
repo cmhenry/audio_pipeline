@@ -375,7 +375,7 @@ def main():
 
     # Add this to the subparsers section
     diag_parser = subparsers.add_parser('diagnose', help='Diagnose schema and test operations')
-    diag_parser.add_argument('diagnose', help='Diagnose schema and test operations')
+    diag_parser.add_argument('--diagnose', help='Diagnose schema and test operations')
     
     # Get location
     location_parser = subparsers.add_parser('get-location', help='Get location for date')
