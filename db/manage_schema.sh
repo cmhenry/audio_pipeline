@@ -283,17 +283,17 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     meta_aigclabeltype VARCHAR(100),
     meta_aigcdescription TEXT,
 
-    -- Arrays stored as JSONB for flexibility
-    meta_diversificationlabels JSONB,
-    meta_serverabversions JSONB,
-    meta_suggestedwords JSONB,
-    meta_adlabelversion JSONB,
-    meta_bainfo JSONB,
-    subtitle_subtitle_lang JSONB,
-    bitrate_bitrate_info JSONB,
-    text_extra_user_mention JSONB,
-    text_extra_hashtag_mention JSONB,
-    warning_warning JSONB,
+    -- Arrays stored as TEXT for flexibility
+    meta_diversificationlabels TEXT,
+    meta_serverabversions TEXT,
+    meta_suggestedwords TEXT,
+    meta_adlabelversion TEXT,
+    meta_bainfo TEXT,
+    subtitle_subtitle_lang TEXT,
+    bitrate_bitrate_info TEXT,
+    text_extra_user_mention TEXT,
+    text_extra_hashtag_mention TEXT,
+    warning_warning TEXT,
 
     -- Duet information
     duetinfo_duetfromid VARCHAR(255),
@@ -400,35 +400,35 @@ CREATE TABLE IF NOT EXISTS comments (
     custom_verify VARCHAR(255),
     enterprise_verify_reason TEXT,
     
-    -- JSONB fields for complex data
-    account_labels JSONB,
-    label_list JSONB,
-    sort_tags JSONB,
-    comment_post_item_ids JSONB,
-    collect_stat JSONB,
-    ad_cover_url JSONB,
-    advance_feature_item_order JSONB,
-    advanced_feature_info JSONB,
-    bold_fields JSONB,
-    can_message_follow_status_list JSONB,
-    can_set_geofencing JSONB,
-    cha_list JSONB,
-    cover_url JSONB,
-    events JSONB,
-    followers_detail JSONB,
-    geofencing JSONB,
-    homepage_bottom_toast JSONB,
-    item_list JSONB,
-    mutual_relation_avatars JSONB,
-    need_points JSONB,
-    platform_sync_info JSONB,
-    relative_users JSONB,
-    search_highlight JSONB,
-    shield_edit_field_info JSONB,
-    type_label JSONB,
-    user_profile_guide JSONB,
-    user_tags JSONB,
-    white_cover_url JSONB,
+    -- TEXT fields for complex data
+    account_labels TEXT,
+    label_list TEXT,
+    sort_tags TEXT,
+    comment_post_item_ids TEXT,
+    collect_stat TEXT,
+    ad_cover_url TEXT,
+    advance_feature_item_order TEXT,
+    advanced_feature_info TEXT,
+    bold_fields TEXT,
+    can_message_follow_status_list TEXT,
+    can_set_geofencing TEXT,
+    cha_list TEXT,
+    cover_url TEXT,
+    events TEXT,
+    followers_detail TEXT,
+    geofencing TEXT,
+    homepage_bottom_toast TEXT,
+    item_list TEXT,
+    mutual_relation_avatars TEXT,
+    need_points TEXT,
+    platform_sync_info TEXT,
+    relative_users TEXT,
+    search_highlight TEXT,
+    shield_edit_field_info TEXT,
+    type_label TEXT,
+    user_profile_guide TEXT,
+    user_tags TEXT,
+    white_cover_url TEXT,
     
     -- Processing metadata
     collection_timestamp TIMESTAMP,
@@ -510,7 +510,7 @@ CREATE INDEX IF NOT EXISTS idx_metadata_stats ON audio_metadata(stats_playcount,
 CREATE INDEX IF NOT EXISTS idx_metadata_country ON audio_metadata(country);
 CREATE INDEX IF NOT EXISTS idx_metadata_author_uniqueid ON audio_metadata(author_uniqueid);
 
--- JSONB indexes
+-- TEXT indexes
 CREATE INDEX IF NOT EXISTS idx_metadata_hashtags ON audio_metadata USING gin(text_extra_hashtag_mention);
 CREATE INDEX IF NOT EXISTS idx_metadata_mentions ON audio_metadata USING gin(text_extra_user_mention);
 
