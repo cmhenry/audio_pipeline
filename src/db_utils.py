@@ -224,6 +224,111 @@ class ProcessingQueueManager:
         self.db.execute(query, [year, month, day, location])
         logger.info(f"Added queue entry: {year}-{month:02d}-{day:02d} {location}")
         return True
+    
+    def diagnose_schema(self):
+        """Diagnose table schema and data types"""
+        print("=== Processing Queue Schema ===")
+        
+        # Check table structure
+        schema_query = """
+            SELECT column_name, data_type, is_nullable, column_default
+            FROM information_schema.columns 
+            WHERE table_name = 'processing_queue'
+            ORDER BY ordinal_position
+        """
+        
+        schema = self.db.execute(schema_query)
+        for col in schema:
+            print(f"{col['column_name']}: {col['data_type']} (nullable: {col['is_nullable']})")
+        
+        # Check if status is an enum
+        enum_query = """
+            SELECT t.typname, string_agg(e.enumlabel, ', ' ORDER BY e.enumsortorder) as values
+            FROM pg_type t 
+            JOIN pg_enum e ON t.oid = e.enumtypid 
+            WHERE t.typname LIKE '%status%'
+            GROUP BY t.typname
+        """
+        
+        enums = self.db.execute(enum_query)
+        if enums:
+            print("\n=== Enum Types ===")
+            for enum in enums:
+                print(f"{enum['typname']}: {enum['values']}")
+        
+        # Test simple insert with explicit types
+        print("\n=== Testing Simple Insert ===")
+        try:
+            test_query = """
+                INSERT INTO processing_queue (year, month, date, location, status, created_at)
+                VALUES (%s::integer, %s::integer, %s::integer, %s::text, %s::text, NOW())
+                RETURNING id
+            """
+            
+            # Use explicit type casting
+            result = self.db.execute(test_query, [2025, 1, 1, 'test_location', 'pending'])
+            if result:
+                print(f"✓ Test insert successful, ID: {result[0]['id']}")
+                
+                # Clean up test entry
+                self.db.execute("DELETE FROM processing_queue WHERE id = %s", [result[0]['id']])
+                print("✓ Test entry cleaned up")
+            else:
+                print("✗ Test insert returned no result")
+                
+        except Exception as e:
+            print(f"✗ Test insert failed: {e}")
+            print(f"Error type: {type(e).__name__}")
+
+    def test_simple_operations(self):
+        """Test basic operations with detailed error reporting"""
+        test_year, test_month, test_day = 2025, 8, 20
+        test_location = 'test_zurich'
+        
+        print(f"\n=== Testing Operations for {test_year}-{test_month:02d}-{test_day:02d} ===")
+        
+        try:
+            # Test add_queue_entry
+            print("1. Testing add_queue_entry...")
+            success = self.add_queue_entry(test_year, test_month, test_day, test_location, skip_existing=False)
+            print(f"   Result: {success}")
+            
+            # Test get_location
+            print("2. Testing get_location...")
+            location = self.get_location(test_year, test_month, test_day)
+            print(f"   Result: {location}")
+            
+            # Test update_transfer_status
+            print("3. Testing update_transfer_status...")
+            self.update_transfer_status(test_year, test_month, test_day, 'transferring')
+            print("   Success")
+            
+            # Test update_processing_status
+            print("4. Testing update_processing_status...")
+            self.update_processing_status(test_year, test_month, test_day, 'processing', slurm_job_id=12345)
+            print("   Success")
+            
+            # Clean up
+            print("5. Cleaning up test entry...")
+            self.db.execute(
+                "DELETE FROM processing_queue WHERE year = %s AND month = %s AND date = %s AND location = %s",
+                [test_year, test_month, test_day, test_location]
+            )
+            print("   Cleaned up")
+            
+        except Exception as e:
+            print(f"✗ Operation failed: {e}")
+            print(f"Error type: {type(e).__name__}")
+            
+            # Try to clean up anyway
+            try:
+                self.db.execute(
+                    "DELETE FROM processing_queue WHERE year = %s AND month = %s AND date = %s AND location = %s",
+                    [test_year, test_month, test_day, test_location]
+                )
+                print("   Cleaned up test entry after error")
+            except:
+                pass
 
 
 def main():
@@ -251,6 +356,10 @@ def main():
     # Get pending dates
     pending_parser = subparsers.add_parser('get-pending', help='Get pending dates')
     pending_parser.add_argument('--limit', type=int, default=5, help='Number of dates to return')
+
+    # Add this to the subparsers section
+    diag_parser = subparsers.add_parser('diagnose', help='Diagnose schema and test operations')
+    diag_parser.add_argument('diagnose', help='Diagnose schema and test operations')
     
     # Get location
     location_parser = subparsers.add_parser('get-location', help='Get location for date')
@@ -335,6 +444,9 @@ def main():
                 sys.exit(1)  # Exit with error to indicate job exists
             else:
                 sys.exit(0)  # Success - no job exists
+        elif args.command == 'diagnose':
+            queue_mgr.diagnose_schema()
+            queue_mgr.test_simple_operations()
                 
         elif args.command == 'load-queue':
             # Load queue entries from file
