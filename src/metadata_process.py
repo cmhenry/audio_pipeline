@@ -9,6 +9,7 @@ from datetime import datetime
 import subprocess
 import logging
 import gc
+import re
 from typing import List, Dict, Tuple
 from sqlalchemy import create_engine
 
@@ -55,6 +56,22 @@ class HPCTimestampedAudioProcessor:
         # Track processed files
         self.processed_count = 0
         self.failed_count = 0
+    
+    def _extract_date_from_filename(self, filename: str) -> Tuple[int, int, int]:
+        """Extract year, month, day from filename containing date in format YYYY-MM-DD"""
+        # Look for date pattern YYYY-MM-DD in filename
+        date_pattern = r'(\d{4})-(\d{2})-(\d{2})'
+        match = re.search(date_pattern, filename)
+        
+        if match:
+            year = int(match.group(1))
+            month = int(match.group(2))
+            day = int(match.group(3))
+            return year, month, day
+        else:
+            logger.warning(f"Could not extract date from filename: {filename}")
+            # Return default values if no date found
+            return self.year, self.month, self.day
         
     def process_month(self):
         """Processing stage for one month of parquet metadata files
@@ -101,6 +118,14 @@ class HPCTimestampedAudioProcessor:
                 for f in metadata_files:
                     try:
                         df = pd.read_parquet(f)
+                        
+                        # Extract date from filename and add columns
+                        year, month, day = self._extract_date_from_filename(f.name)
+                        df['year'] = year
+                        df['month'] = month
+                        df['date'] = day
+                        
+                        logger.info(f"Processed {f.name}: {len(df)} rows with date {year}-{month:02d}-{day:02d}")
                         metadata_dfs.append(df)
                     except Exception as e:
                         logger.error(f"Failed to read {f.name}: {e}")
@@ -122,6 +147,14 @@ class HPCTimestampedAudioProcessor:
                 for f in comments_files:
                     try:
                         df = pd.read_parquet(f)
+                        
+                        # Extract date from filename and add columns
+                        year, month, day = self._extract_date_from_filename(f.name)
+                        df['year'] = year
+                        df['month'] = month
+                        df['date'] = day
+                        
+                        logger.info(f"Processed {f.name}: {len(df)} rows with date {year}-{month:02d}-{day:02d}")
                         comments_dfs.append(df)
                     except Exception as e:
                         logger.error(f"Failed to read {f.name}: {e}")
@@ -143,6 +176,14 @@ class HPCTimestampedAudioProcessor:
                 for f in subtitles_files:
                     try:
                         df = pd.read_parquet(f)
+                        
+                        # Extract date from filename and add columns
+                        year, month, day = self._extract_date_from_filename(f.name)
+                        df['year'] = year
+                        df['month'] = month
+                        df['date'] = day
+                        
+                        logger.info(f"Processed {f.name}: {len(df)} rows with date {year}-{month:02d}-{day:02d}")
                         subtitles_dfs.append(df)
                     except Exception as e:
                         logger.error(f"Failed to read {f.name}: {e}")
@@ -278,6 +319,9 @@ class HPCTimestampedAudioProcessor:
             'warning_warning': 'warning_warning',
             
             # Processing metadata
+            'year':'year',
+            'month':'month',
+            'day':'day',
             'timestamp': 'timestamp',
             'pol': 'pol',
             'hour': 'hour',
@@ -290,10 +334,8 @@ class HPCTimestampedAudioProcessor:
         # Rename columns
         metadata_df = metadata_df.rename(columns=column_mapping)
         
-        # Add date columns
-        metadata_df['year'] = self.year
-        metadata_df['month'] = self.month
-        metadata_df['date'] = self.day
+        # Note: year, month, date columns are already added from filename extraction
+        # No need to add them again here
         
         # Store in database
         try:
@@ -319,6 +361,9 @@ class HPCTimestampedAudioProcessor:
             'aweme_id': 'aweme_id',
             'text': 'comment_text',
             'create_time': 'create_time',
+            'year':'year',
+            'month':'month',
+            'day':'day',
             
             # Comment engagement stats
             'digg_count': 'digg_count',
@@ -391,10 +436,8 @@ class HPCTimestampedAudioProcessor:
         # Rename columns
         comments_df = comments_df.rename(columns=column_mapping)
         
-        # Add date columns
-        comments_df['year'] = self.year
-        comments_df['month'] = self.month
-        comments_df['date'] = self.day
+        # Note: year, month, date columns are already added from filename extraction
+        # No need to add them again here
         
         # Store in database
         try:
@@ -422,6 +465,9 @@ class HPCTimestampedAudioProcessor:
             'rest': 'rest',
             
             # Processing metadata
+            'year':'year',
+            'month':'month',
+            'day':'day',
             'collection_timestamp': 'collection_timestamp',
             'hash_unique_id': 'hash_unique_id',
         }
@@ -429,10 +475,8 @@ class HPCTimestampedAudioProcessor:
         # Rename columns
         subtitles_df = subtitles_df.rename(columns=column_mapping)
         
-        # Add date columns
-        subtitles_df['year'] = self.year
-        subtitles_df['month'] = self.month
-        subtitles_df['date'] = self.day
+        # Note: year, month, date columns are already added from filename extraction
+        # No need to add them again here
         
         # Store in database
         try:
