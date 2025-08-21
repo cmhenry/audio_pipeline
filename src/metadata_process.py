@@ -1,5 +1,6 @@
 import argparse
 import psycopg2
+from psycopg2.extras import execute_values
 import pandas as pd
 import tarfile
 import pyarrow.parquet as pq
