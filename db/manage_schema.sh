@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS audio_files (
     meta_id TEXT NOT NULL,
     filename TEXT NOT NULL UNIQUE,
     file_path VARCHAR(500),
-    file_size_bytes BIGINT,
+    file_size_bytes NUMERIC,
     month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
     date INTEGER NOT NULL CHECK (date >= 1 AND date <= 31),
     year INTEGER NOT NULL CHECK (year >= 2000),
@@ -185,10 +185,10 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     
     -- Other metadata fields
     poi_id TEXT,
-    meta_createtime BIGINT,
-    meta_scheduletime BIGINT,
-    timestamp BIGINT,
-    collection_timestamp BIGINT,
+    meta_createtime NUMERIC,
+    meta_scheduletime NUMERIC,
+    timestamp NUMERIC,
+    collection_timestamp NUMERIC,
 
     -- Content status and settings
     meta_itemcommentstatus INTEGER,
@@ -215,16 +215,16 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     author_duetsetting INTEGER,
     author_stitchsetting INTEGER,
     author_downloadsetting INTEGER,
-    author_createtime BIGINT,
+    author_createtime NUMERIC,
     
     -- Author statistics
-    authorstats_followercount BIGINT DEFAULT 0,
-    authorstats_followingcount BIGINT DEFAULT 0,
-    authorstats_heart BIGINT DEFAULT 0,
-    authorstats_heartcount BIGINT DEFAULT 0,
-    authorstats_videocount BIGINT DEFAULT 0,
-    authorstats_diggcount BIGINT DEFAULT 0,
-    authorstats_friendcount BIGINT DEFAULT 0,
+    authorstats_followercount NUMERIC DEFAULT 0,
+    authorstats_followingcount NUMERIC DEFAULT 0,
+    authorstats_heart NUMERIC DEFAULT 0,
+    authorstats_heartcount NUMERIC DEFAULT 0,
+    authorstats_videocount NUMERIC DEFAULT 0,
+    authorstats_diggcount NUMERIC DEFAULT 0,
+    authorstats_friendcount NUMERIC DEFAULT 0,
 
     -- Music information
     music_id TEXT,
@@ -232,15 +232,15 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     music_authorname TEXT,
     music_album TEXT,
     music_duration INTEGER,
-    music_schedulesearchtime BIGINT,
+    music_schedulesearchtime NUMERIC,
     music_collected BOOLEAN DEFAULT FALSE,
 
     -- Statistics
-    stats_diggcount BIGINT DEFAULT 0,
-    stats_sharecount BIGINT DEFAULT 0,
-    stats_commentcount BIGINT DEFAULT 0,
-    stats_playcount BIGINT DEFAULT 0,
-    stats_collectcount BIGINT DEFAULT 0,
+    stats_diggcount NUMERIC DEFAULT 0,
+    stats_sharecount NUMERIC DEFAULT 0,
+    stats_commentcount NUMERIC DEFAULT 0,
+    stats_playcount NUMERIC DEFAULT 0,
+    stats_collectcount NUMERIC DEFAULT 0,
 
     -- Video specifications
     video_height INTEGER,
@@ -373,11 +373,11 @@ CREATE TABLE IF NOT EXISTS comments (
     cid TEXT NOT NULL,
     aweme_id TEXT,
     comment_text TEXT,
-    create_time BIGINT,
+    create_time NUMERIC,
     
     -- Comment engagement stats
-    digg_count BIGINT DEFAULT 0,
-    reply_count BIGINT DEFAULT 0,
+    digg_count NUMERIC DEFAULT 0,
+    reply_count NUMERIC DEFAULT 0,
     reply_comment_total INTEGER DEFAULT 0,
     
     -- Comment metadata
@@ -441,7 +441,7 @@ CREATE TABLE IF NOT EXISTS comments (
     white_cover_url TEXT,
     
     -- Processing metadata
-    collection_timestamp BIGINT,
+    collection_timestamp NUMERIC,
     hash_unique_id TEXT,
     total INTEGER,
     
@@ -479,7 +479,7 @@ CREATE TABLE IF NOT EXISTS subtitles (
     rest TEXT,
     
     -- Processing metadata
-    collection_timestamp BIGINT,
+    collection_timestamp NUMERIC,
     hash_unique_id TEXT,
     
     -- Timestamps
