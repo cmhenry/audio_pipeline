@@ -157,6 +157,11 @@ class HPCTimestampedAudioProcessor:
                     # self._debug_bigint_ranges(combined_metadata, "metadata")   
 
                     # Convert boolean columns before storing & sanitize ranges
+                    combined_metadata = self._deduplicate_batch(
+                        combined_metadata,
+                        ['meta_id', 'year', 'month', 'date'],
+                        'metadata'
+                    )
                     combined_metadata = self._convert_metadata_boolean_columns(combined_metadata)
                     # combined_metadata = self._sanitize_bigint_values(combined_metadata)
                     
