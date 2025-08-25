@@ -64,66 +64,114 @@ class HPCTimestampedAudioProcessor:
         BIGINT_MIN = -9223372036854775808
         BIGINT_MAX = 9223372036854775807
         
-        # Check numeric columns that might be BIGINT
-        numeric_columns = df.select_dtypes(include=['int64', 'float64']).columns
+        # Check ALL numeric columns, not just select types
+        numeric_columns = []
+        for col in df.columns:
+            if pd.api.types.is_numeric_dtype(df[col]):
+                numeric_columns.append(col)
         
-        logger.info(f"Checking BIGINT ranges for {table_name}...")
+        logger.info(f"Checking BIGINT ranges for {table_name} - {len(numeric_columns)} numeric columns...")
         
         for col in numeric_columns:
-            if col in df.columns:
-                # Skip NaN values and convert to int for checking
-                non_null_values = df[col].dropna()
-                if len(non_null_values) == 0:
-                    continue
+            non_null_values = df[col].dropna()
+            if len(non_null_values) == 0:
+                logger.info(f"Column '{col}': All NULL values")
+                continue
+                
+            try:
+                # Convert to numeric and check for out-of-range values
+                min_val = non_null_values.min()
+                max_val = non_null_values.max()
+                
+                # Check if any values are out of range
+                out_of_range_mask = (non_null_values < BIGINT_MIN) | (non_null_values > BIGINT_MAX)
+                out_of_range_count = out_of_range_mask.sum()
+                
+                if out_of_range_count > 0:
+                    problematic_values = non_null_values[out_of_range_mask]
+                    logger.error(f"Column '{col}' has {out_of_range_count} values out of BIGINT range:")
+                    logger.error(f"  Min: {min_val}, Max: {max_val}")
+                    logger.error(f"  Sample bad values: {problematic_values.head(5).tolist()}")
+                    return False  # Found problems
+                else:
+                    logger.info(f"Column '{col}': OK (range {min_val} to {max_val})")
                     
-                try:
-                    # Convert to int64 to check range
-                    int_values = pd.to_numeric(non_null_values, errors='coerce').astype('Int64', errors='ignore')
-                    int_values = int_values.dropna()
-                    
-                    if len(int_values) == 0:
-                        continue
-                        
-                    min_val = int_values.min()
-                    max_val = int_values.max()
-                    
-                    # Check if any values are out of range
-                    out_of_range = (int_values < BIGINT_MIN) | (int_values > BIGINT_MAX)
-                    if out_of_range.any():
-                        problematic_values = int_values[out_of_range]
-                        logger.error(f"Column '{col}' has {len(problematic_values)} values out of BIGINT range:")
-                        logger.error(f"  Range: {min_val} to {max_val}")
-                        logger.error(f"  Problematic values: {problematic_values.head(10).tolist()}")
-                    else:
-                        logger.info(f"Column '{col}': OK (range {min_val} to {max_val})")
-                        
-                except Exception as e:
-                    logger.warning(f"Could not check column '{col}': {e}")
+            except Exception as e:
+                logger.error(f"Error checking column '{col}': {e}")
+                return False
+        
+        return True  # All columns OK
 
     def _sanitize_bigint_values(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Sanitize values that are out of BIGINT range"""
+        """Sanitize numeric values that are out of BIGINT range using smart strategies"""
         BIGINT_MIN = -9223372036854775808
         BIGINT_MAX = 9223372036854775807
         
-        # Focus on timestamp fields that commonly have issues
+        # Reasonable timestamp range (1970 to 2050 in seconds)
+        MIN_TIMESTAMP = 0
+        MAX_TIMESTAMP = 2524608000  # Jan 1, 2050
+        
+        # Timestamp fields that should be scaled down if too large
         timestamp_columns = [
             'meta_createtime', 'meta_scheduletime', 'timestamp', 'collection_timestamp',
             'author_createtime', 'music_schedulesearchtime', 'create_time'
         ]
         
-        for col in timestamp_columns:
-            if col in df.columns:
-                # Convert to numeric, handle out-of-range values
-                original_count = len(df)
+        # Count fields that should be clipped to reasonable maxima
+        count_columns = [
+            'authorstats_followercount', 'authorstats_followingcount', 'authorstats_heart',
+            'authorstats_heartcount', 'authorstats_videocount', 'authorstats_diggcount',
+            'authorstats_friendcount', 'stats_diggcount', 'stats_sharecount', 
+            'stats_commentcount', 'stats_playcount', 'stats_collectcount',
+            'digg_count', 'reply_count', 'reply_comment_total'
+        ]
+        
+        logger.info("Smart sanitization of out-of-range values...")
+        
+        for col in df.columns:
+            if not pd.api.types.is_numeric_dtype(df[col]):
+                continue
                 
-                # Convert problematic values to NULL
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-                df.loc[(df[col] < BIGINT_MIN) | (df[col] > BIGINT_MAX), col] = None
+            out_of_range_mask = (df[col] < BIGINT_MIN) | (df[col] > BIGINT_MAX)
+            out_of_range_count = out_of_range_mask.sum()
+            
+            if out_of_range_count == 0:
+                continue
                 
-                # Log if we found issues
-                null_count = df[col].isnull().sum()
-                if null_count > 0:
-                    logger.warning(f"Sanitized {null_count} out-of-range values in column '{col}'")
+            if col in timestamp_columns:
+                # Timestamp strategy: scale down if too large, clip if outside reasonable range
+                logger.warning(f"Fixing {out_of_range_count} timestamp values in '{col}'")
+                
+                # If values are very large (likely nanoseconds/microseconds), scale them down
+                large_values_mask = df[col] > MAX_TIMESTAMP * 1000  # More than milliseconds
+                very_large_mask = df[col] > MAX_TIMESTAMP * 1000000  # More than microseconds
+                
+                # Scale nanoseconds to seconds
+                df.loc[very_large_mask, col] = df.loc[very_large_mask, col] // 1000000000
+                # Scale microseconds to seconds  
+                df.loc[large_values_mask & ~very_large_mask, col] = df.loc[large_values_mask & ~very_large_mask, col] // 1000
+                
+                # Clip to reasonable timestamp range
+                df.loc[df[col] < MIN_TIMESTAMP, col] = MIN_TIMESTAMP
+                df.loc[df[col] > MAX_TIMESTAMP, col] = MAX_TIMESTAMP
+                
+            elif col in count_columns:
+                # Count strategy: clip to BIGINT_MAX (preserves "very large" meaning)
+                logger.warning(f"Clipping {out_of_range_count} count values in '{col}' to BIGINT_MAX")
+                df.loc[df[col] > BIGINT_MAX, col] = BIGINT_MAX
+                df.loc[df[col] < BIGINT_MIN, col] = 0  # Negative counts don't make sense
+                
+            else:
+                # Generic strategy: clip to BIGINT range
+                logger.warning(f"Clipping {out_of_range_count} values in '{col}' to BIGINT range")
+                df.loc[df[col] > BIGINT_MAX, col] = BIGINT_MAX
+                df.loc[df[col] < BIGINT_MIN, col] = BIGINT_MIN
+        
+        # Verify sanitization worked
+        logger.info("Verifying sanitization...")
+        if not self._debug_bigint_ranges(df, "post-sanitization"):
+            logger.error("SANITIZATION FAILED!")
+            raise ValueError("Failed to sanitize out-of-range values")
         
         return df
     
@@ -242,7 +290,7 @@ class HPCTimestampedAudioProcessor:
                     
                     # Debug and sanitize
                     self._debug_bigint_ranges(combined_comments, "comments")
-                    combined_comments = self._convert_boolean_columns(combined_comments)
+                    combined_comments = self._convert_comment_boolean_columns(combined_comments)
                     combined_comments = self._sanitize_bigint_values(combined_comments)
                     
                     # Store comments
