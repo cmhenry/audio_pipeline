@@ -58,122 +58,23 @@ class HPCTimestampedAudioProcessor:
         self.processed_count = 0
         self.failed_count = 0
 
-    # def _debug_bigint_ranges(self, df: pd.DataFrame, table_name: str):
-    #     """Debug method to find values outside BIGINT range"""
-    #     # PostgreSQL BIGINT range
-    #     BIGINT_MIN = -9223372036854775808
-    #     BIGINT_MAX = 9223372036854775807
+    def _deduplicate_batch(self, df: pd.DataFrame, unique_columns: list, table_name: str) -> pd.DataFrame:
+        """Remove duplicates within the batch, keeping the last occurrence"""
         
-    #     # Check ALL numeric columns, not just select types
-    #     numeric_columns = []
-    #     for col in df.columns:
-    #         if pd.api.types.is_numeric_dtype(df[col]):
-    #             numeric_columns.append(col)
+        original_count = len(df)
         
-    #     logger.info(f"Checking BIGINT ranges for {table_name} - {len(numeric_columns)} numeric columns...")
+        # Remove duplicates based on unique constraint columns, keeping last occurrence
+        df_deduped = df.drop_duplicates(subset=unique_columns, keep='last')
         
-    #     for col in numeric_columns:
-    #         non_null_values = df[col].dropna()
-    #         if len(non_null_values) == 0:
-    #             logger.info(f"Column '{col}': All NULL values")
-    #             continue
-                
-    #         try:
-    #             # Convert to numeric and check for out-of-range values
-    #             min_val = non_null_values.min()
-    #             max_val = non_null_values.max()
-                
-    #             # Check if any values are out of range
-    #             out_of_range_mask = (non_null_values < BIGINT_MIN) | (non_null_values > BIGINT_MAX)
-    #             out_of_range_count = out_of_range_mask.sum()
-                
-    #             if out_of_range_count > 0:
-    #                 problematic_values = non_null_values[out_of_range_mask]
-    #                 logger.error(f"Column '{col}' has {out_of_range_count} values out of BIGINT range:")
-    #                 logger.error(f"  Min: {min_val}, Max: {max_val}")
-    #                 logger.error(f"  Sample bad values: {problematic_values.head(5).tolist()}")
-    #                 return False  # Found problems
-    #             else:
-    #                 logger.info(f"Column '{col}': OK (range {min_val} to {max_val})")
-                    
-    #         except Exception as e:
-    #             logger.error(f"Error checking column '{col}': {e}")
-    #             return False
+        removed_count = original_count - len(df_deduped)
         
-    #     return True  # All columns OK
-
-    # def _sanitize_bigint_values(self, df: pd.DataFrame) -> pd.DataFrame:
-    #     """Sanitize numeric values that are out of BIGINT range using smart strategies"""
-    #     BIGINT_MIN = -9223372036854775808
-    #     BIGINT_MAX = 9223372036854775807
-        
-    #     # Reasonable timestamp range (1970 to 2050 in seconds)
-    #     MIN_TIMESTAMP = 0
-    #     MAX_TIMESTAMP = 2524608000  # Jan 1, 2050
-        
-    #     # Timestamp fields that should be scaled down if too large
-    #     timestamp_columns = [
-    #         'meta_createtime', 'meta_scheduletime', 'timestamp', 'collection_timestamp',
-    #         'author_createtime', 'music_schedulesearchtime', 'create_time'
-    #     ]
-        
-    #     # Count fields that should be clipped to reasonable maxima
-    #     count_columns = [
-    #         'authorstats_followercount', 'authorstats_followingcount', 'authorstats_heart',
-    #         'authorstats_heartcount', 'authorstats_videocount', 'authorstats_diggcount',
-    #         'authorstats_friendcount', 'stats_diggcount', 'stats_sharecount', 
-    #         'stats_commentcount', 'stats_playcount', 'stats_collectcount',
-    #         'digg_count', 'reply_count', 'reply_comment_total'
-    #     ]
-        
-    #     logger.info("Smart sanitization of out-of-range values...")
-        
-    #     for col in df.columns:
-    #         if not pd.api.types.is_numeric_dtype(df[col]):
-    #             continue
-                
-    #         out_of_range_mask = (df[col] < BIGINT_MIN) | (df[col] > BIGINT_MAX)
-    #         out_of_range_count = out_of_range_mask.sum()
-            
-    #         if out_of_range_count == 0:
-    #             continue
-                
-    #         if col in timestamp_columns:
-    #             # Timestamp strategy: scale down if too large, clip if outside reasonable range
-    #             logger.warning(f"Fixing {out_of_range_count} timestamp values in '{col}'")
-                
-    #             # If values are very large (likely nanoseconds/microseconds), scale them down
-    #             large_values_mask = df[col] > MAX_TIMESTAMP * 1000  # More than milliseconds
-    #             very_large_mask = df[col] > MAX_TIMESTAMP * 1000000  # More than microseconds
-                
-    #             # Scale nanoseconds to seconds
-    #             df.loc[very_large_mask, col] = df.loc[very_large_mask, col] // 1000000000
-    #             # Scale microseconds to seconds  
-    #             df.loc[large_values_mask & ~very_large_mask, col] = df.loc[large_values_mask & ~very_large_mask, col] // 1000
-                
-    #             # Clip to reasonable timestamp range
-    #             df.loc[df[col] < MIN_TIMESTAMP, col] = MIN_TIMESTAMP
-    #             df.loc[df[col] > MAX_TIMESTAMP, col] = MAX_TIMESTAMP
-                
-    #         elif col in count_columns:
-    #             # Count strategy: clip to BIGINT_MAX (preserves "very large" meaning)
-    #             logger.warning(f"Clipping {out_of_range_count} count values in '{col}' to BIGINT_MAX")
-    #             df.loc[df[col] > BIGINT_MAX, col] = BIGINT_MAX
-    #             df.loc[df[col] < BIGINT_MIN, col] = 0  # Negative counts don't make sense
-                
-    #         else:
-    #             # Generic strategy: clip to BIGINT range
-    #             logger.warning(f"Clipping {out_of_range_count} values in '{col}' to BIGINT range")
-    #             df.loc[df[col] > BIGINT_MAX, col] = BIGINT_MAX
-    #             df.loc[df[col] < BIGINT_MIN, col] = BIGINT_MIN
-        
-    #     # Verify sanitization worked
-    #     logger.info("Verifying sanitization...")
-    #     if not self._debug_bigint_ranges(df, "post-sanitization"):
-    #         logger.error("SANITIZATION FAILED!")
-    #         raise ValueError("Failed to sanitize out-of-range values")
-        
-    #     return df
+        if removed_count > 0:
+            logger.warning(f"Removed {removed_count} duplicate rows from {table_name} batch (kept latest)")
+            logger.info(f"Deduplicated {table_name}: {original_count} → {len(df_deduped)} records")
+        else:
+            logger.info(f"No duplicates found in {table_name} batch")
+    
+        return df_deduped
     
     def _extract_date_from_filename(self, filename: str) -> Tuple[int, int, int]:
         """Extract year, month, day from filename containing date in format YYYY-MM-DD"""
@@ -288,10 +189,16 @@ class HPCTimestampedAudioProcessor:
                     combined_comments = pd.concat(comments_dfs, ignore_index=True)
                     logger.info(f"Combined comments: {len(combined_comments)} rows")
                     
-                    # Debug and sanitize
-                    # self._debug_bigint_ranges(combined_comments, "comments")
-                    combined_comments = self._convert_comment_boolean_columns(combined_comments)
-                    # combined_comments = self._sanitize_bigint_values(combined_comments)
+                    # Deduplicate within batch before other processing
+                    combined_comments = self._deduplicate_batch(
+                        combined_comments, 
+                        ['cid', 'meta_id', 'year', 'month', 'date'], 
+                        'comments'
+                    )
+                    
+                    # Continue with existing processing
+                    combined_comments = self._convert_boolean_columns(combined_comments)
+                    combined_comments = self._sanitize_bigint_values(combined_comments)
                     
                     # Store comments
                     self._store_comments_batch(combined_comments)
