@@ -441,7 +441,7 @@ CREATE TABLE IF NOT EXISTS comments (
     white_cover_url TEXT,
     
     -- Processing metadata
-    collection_timestamp TIMESTAMP,
+    collection_timestamp BIGINT,
     hash_unique_id VARCHAR(255),
     total INTEGER,
     
@@ -479,7 +479,7 @@ CREATE TABLE IF NOT EXISTS subtitles (
     rest TEXT,
     
     -- Processing metadata
-    collection_timestamp TIMESTAMP,
+    collection_timestamp BIGINT,
     hash_unique_id VARCHAR(255),
     
     -- Timestamps

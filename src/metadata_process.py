@@ -57,6 +57,75 @@ class HPCTimestampedAudioProcessor:
         # Track processed files
         self.processed_count = 0
         self.failed_count = 0
+
+    def _debug_bigint_ranges(self, df: pd.DataFrame, table_name: str):
+        """Debug method to find values outside BIGINT range"""
+        # PostgreSQL BIGINT range
+        BIGINT_MIN = -9223372036854775808
+        BIGINT_MAX = 9223372036854775807
+        
+        # Check numeric columns that might be BIGINT
+        numeric_columns = df.select_dtypes(include=['int64', 'float64']).columns
+        
+        logger.info(f"Checking BIGINT ranges for {table_name}...")
+        
+        for col in numeric_columns:
+            if col in df.columns:
+                # Skip NaN values and convert to int for checking
+                non_null_values = df[col].dropna()
+                if len(non_null_values) == 0:
+                    continue
+                    
+                try:
+                    # Convert to int64 to check range
+                    int_values = pd.to_numeric(non_null_values, errors='coerce').astype('Int64', errors='ignore')
+                    int_values = int_values.dropna()
+                    
+                    if len(int_values) == 0:
+                        continue
+                        
+                    min_val = int_values.min()
+                    max_val = int_values.max()
+                    
+                    # Check if any values are out of range
+                    out_of_range = (int_values < BIGINT_MIN) | (int_values > BIGINT_MAX)
+                    if out_of_range.any():
+                        problematic_values = int_values[out_of_range]
+                        logger.error(f"Column '{col}' has {len(problematic_values)} values out of BIGINT range:")
+                        logger.error(f"  Range: {min_val} to {max_val}")
+                        logger.error(f"  Problematic values: {problematic_values.head(10).tolist()}")
+                    else:
+                        logger.info(f"Column '{col}': OK (range {min_val} to {max_val})")
+                        
+                except Exception as e:
+                    logger.warning(f"Could not check column '{col}': {e}")
+
+    def _sanitize_bigint_values(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Sanitize values that are out of BIGINT range"""
+        BIGINT_MIN = -9223372036854775808
+        BIGINT_MAX = 9223372036854775807
+        
+        # Focus on timestamp fields that commonly have issues
+        timestamp_columns = [
+            'meta_createtime', 'meta_scheduletime', 'timestamp', 'collection_timestamp',
+            'author_createtime', 'music_schedulesearchtime', 'create_time'
+        ]
+        
+        for col in timestamp_columns:
+            if col in df.columns:
+                # Convert to numeric, handle out-of-range values
+                original_count = len(df)
+                
+                # Convert problematic values to NULL
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+                df.loc[(df[col] < BIGINT_MIN) | (df[col] > BIGINT_MAX), col] = None
+                
+                # Log if we found issues
+                null_count = df[col].isnull().sum()
+                if null_count > 0:
+                    logger.warning(f"Sanitized {null_count} out-of-range values in column '{col}'")
+        
+        return df
     
     def _extract_date_from_filename(self, filename: str) -> Tuple[int, int, int]:
         """Extract year, month, day from filename containing date in format YYYY-MM-DD"""
@@ -134,6 +203,13 @@ class HPCTimestampedAudioProcessor:
                 if metadata_dfs:
                     combined_metadata = pd.concat(metadata_dfs, ignore_index=True)
                     logger.info(f"Combined metadata: {len(combined_metadata)} rows")
+
+                    # Debug the problematic values
+                    self._debug_bigint_ranges(combined_metadata, "metadata")   
+
+                    # Convert boolean columns before storing & sanitize ranges
+                    combined_metadata = self._convert_metadata_boolean_columns(combined_metadata)
+                    combined_metadata = self._sanitize_bigint_values(combined_metadata)
                     
                     # Store in database
                     self._store_metadata_batch(combined_metadata)
@@ -164,6 +240,11 @@ class HPCTimestampedAudioProcessor:
                     combined_comments = pd.concat(comments_dfs, ignore_index=True)
                     logger.info(f"Combined comments: {len(combined_comments)} rows")
                     
+                    # Debug and sanitize
+                    self._debug_bigint_ranges(combined_comments, "comments")
+                    combined_comments = self._convert_boolean_columns(combined_comments)
+                    combined_comments = self._sanitize_bigint_values(combined_comments)
+                    
                     # Store comments
                     self._store_comments_batch(combined_comments)
                     
@@ -192,6 +273,10 @@ class HPCTimestampedAudioProcessor:
                 if subtitles_dfs:
                     combined_subtitles = pd.concat(subtitles_dfs, ignore_index=True)
                     logger.info(f"Combined subtitles: {len(combined_subtitles)} rows")
+
+                    # Debug and sanitize  
+                    self._debug_bigint_ranges(combined_subtitles, "subtitles")
+                    combined_subtitles = self._sanitize_bigint_values(combined_subtitles)
                     
                     # Store subtitles
                     self._store_subtitles_batch(combined_subtitles)
@@ -199,9 +284,26 @@ class HPCTimestampedAudioProcessor:
             except Exception as e:
                 logger.error(f"Failed to process subtitles: {e}")
     
+    def _convert_metadata_boolean_columns(self, metadata_df: pd.DataFrame) -> pd.DataFrame:
+        """Convert integer boolean columns to actual booleans in metadata"""
+        boolean_columns = [
+            'meta_secret', 'meta_privateitem', 'meta_duetenabled', 'meta_stitchenabled',
+            'meta_indexenabled', 'meta_iscontentclassified', 'meta_isaigc', 'meta_isad',
+            'meta_isecvideo', 'author_verified', 'author_openfavorite', 'music_collected'
+        ]
+        
+        for col in boolean_columns:
+            if col in metadata_df.columns:
+                metadata_df[col] = metadata_df[col].fillna(0).astype(int).astype(bool)
+        
+        return metadata_df
+
     def _store_metadata_batch(self, metadata_df: pd.DataFrame):
         """Store metadata in database using UPSERT to handle duplicates"""
         logger.info(f"Storing {len(metadata_df)} metadata records with UPSERT...")
+
+        # self._debug_bigint_ranges(metadata_df, "metadata")
+        # metadata_df = self._sanitize_bigint_values(metadata_df)
         
         # Define the columns we want to insert (in order)
         columns = [
@@ -270,6 +372,21 @@ class HPCTimestampedAudioProcessor:
             self.db.rollback()
             raise
     
+    def _convert_comment_boolean_columns(self, comments_df: pd.DataFrame) -> pd.DataFrame:
+        """Convert integer boolean columns to actual booleans"""
+        boolean_columns = [
+            'is_comment_translatable', 'no_show', 'user_digged', 'user_buried',
+            'is_author_digged', 'author_pin', 'music_collected'
+        ]
+        
+        for col in boolean_columns:
+            if col in comments_df.columns:
+                # Convert 1/0 to True/False, handle NaN values
+                comments_df[col] = comments_df[col].fillna(0).astype(int).astype(bool)
+                logger.debug(f"Converted {col} to boolean")
+        
+        return comments_df
+
     def _store_comments_batch(self, comments_df: pd.DataFrame):
         """Store comments in database using UPSERT to handle duplicates"""
         logger.info(f"Storing {len(comments_df)} comment records with UPSERT...")
