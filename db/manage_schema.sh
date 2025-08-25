@@ -135,15 +135,15 @@ echo -e "   ${GREEN}✓${NC} Created update_updated_at function"
 PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /dev/null 2>&1
 CREATE TABLE IF NOT EXISTS audio_files (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    meta_id VARCHAR(255) NOT NULL,
-    filename VARCHAR(255) NOT NULL UNIQUE,
+    meta_id TEXT NOT NULL,
+    filename TEXT NOT NULL UNIQUE,
     file_path VARCHAR(500),
     file_size_bytes BIGINT,
     month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
     date INTEGER NOT NULL CHECK (date >= 1 AND date <= 31),
     year INTEGER NOT NULL CHECK (year >= 2000),
-    location VARCHAR(100),
-    classification VARCHAR(100),
+    location TEXT,
+    classification TEXT,
     classification_probability DECIMAL(3,2) CHECK (classification_probability >= 0 AND classification_probability <= 1),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -178,13 +178,13 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     audio_file_id UUID,
 
     -- Core metadata (business key)
-    meta_id VARCHAR(255) NOT NULL,
+    meta_id TEXT NOT NULL,
     year INTEGER NOT NULL,
     month INTEGER NOT NULL, 
     date INTEGER NOT NULL,
     
     -- Other metadata fields
-    poi_id VARCHAR(255),
+    poi_id TEXT,
     meta_createtime BIGINT,
     meta_scheduletime BIGINT,
     timestamp BIGINT,
@@ -192,7 +192,7 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
 
     -- Content status and settings
     meta_itemcommentstatus INTEGER,
-    meta_diversificationid VARCHAR(255),
+    meta_diversificationid TEXT,
     meta_secret BOOLEAN DEFAULT FALSE,
     meta_privateitem BOOLEAN DEFAULT FALSE,
     meta_duetenabled BOOLEAN DEFAULT TRUE,
@@ -204,11 +204,11 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     meta_isecvideo BOOLEAN DEFAULT FALSE,
 
     -- Author information
-    author_id VARCHAR(255),
-    author_uniqueid VARCHAR(255),
+    author_id TEXT,
+    author_uniqueid TEXT,
     author_nickname TEXT,
     author_signature TEXT,
-    author_roomid VARCHAR(255),
+    author_roomid TEXT,
     author_verified BOOLEAN DEFAULT FALSE,
     author_openfavorite BOOLEAN DEFAULT TRUE,
     author_commentsetting INTEGER,
@@ -227,9 +227,9 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     authorstats_friendcount BIGINT DEFAULT 0,
 
     -- Music information
-    music_id VARCHAR(255),
+    music_id TEXT,
     music_title TEXT,
-    music_authorname VARCHAR(255),
+    music_authorname TEXT,
     music_album TEXT,
     music_duration INTEGER,
     music_schedulesearchtime BIGINT,
@@ -247,35 +247,35 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     video_width INTEGER,
     video_duration INTEGER,
     video_bitrate INTEGER,
-    video_ratio VARCHAR(50),
-    video_encodedtype VARCHAR(50),
-    video_format VARCHAR(50),
-    video_videoquality VARCHAR(50),
-    video_codectype VARCHAR(50),
-    video_definition VARCHAR(50),
+    video_ratio TEXT,
+    video_encodedtype TEXT,
+    video_format TEXT,
+    video_videoquality TEXT,
+    video_codectype TEXT,
+    video_definition TEXT,
 
     -- Location/POI information
-    poi_type VARCHAR(100),
+    poi_type TEXT,
     poi_name TEXT,
     poi_address TEXT,
-    poi_city VARCHAR(255),
-    poi_citycode VARCHAR(50),
-    poi_province VARCHAR(255),
-    poi_country VARCHAR(255),
-    poi_countrycode VARCHAR(10),
-    poi_fatherpoiid VARCHAR(255),
+    poi_city TEXT,
+    poi_citycode TEXT,
+    poi_province TEXT,
+    poi_country TEXT,
+    poi_countrycode TEXT,
+    poi_fatherpoiid TEXT,
     poi_fatherpoiname TEXT,
-    poi_category VARCHAR(255),
-    poi_tttypecode VARCHAR(50),
-    poi_typecode VARCHAR(50),
-    poi_tttypenametiny VARCHAR(255),
-    poi_tttypenamemedium VARCHAR(255),
-    poi_tttypenamesuper VARCHAR(255),
+    poi_category TEXT,
+    poi_tttypecode TEXT,
+    poi_typecode TEXT,
+    poi_tttypenametiny TEXT,
+    poi_tttypenamemedium TEXT,
+    poi_tttypenamesuper TEXT,
 
     -- Address information
-    adress_addresscountry VARCHAR(255),
-    adress_addresslocality VARCHAR(255),
-    adress_addressregion VARCHAR(255),
+    adress_addresscountry TEXT,
+    adress_addresslocality TEXT,
+    adress_addressregion TEXT,
     adress_streetaddress TEXT,
 
     -- Status and messages
@@ -286,10 +286,10 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     meta_desc TEXT,
     meta_locationcreated TEXT,
     processed_desc TEXT,
-    description_hash VARCHAR(255),
+    description_hash TEXT,
 
     -- AI/Classification
-    meta_aigclabeltype VARCHAR(100),
+    meta_aigclabeltype TEXT,
     meta_aigcdescription TEXT,
 
     -- Arrays stored as TEXT for flexibility
@@ -305,14 +305,14 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     warning_warning TEXT,
 
     -- Duet information
-    duetinfo_duetfromid VARCHAR(255),
+    duetinfo_duetfromid TEXT,
 
     -- Processing metadata
-    pol VARCHAR(50),
+    pol TEXT,
     hour INTEGER,
-    country VARCHAR(255),
+    country TEXT,
     raw TEXT,
-    meta_textlanguage VARCHAR(20),
+    meta_textlanguage TEXT,
     meta_categorytype INTEGER,
 
     -- Timestamps
@@ -338,11 +338,11 @@ CREATE TABLE IF NOT EXISTS processing_queue (
     year INTEGER NOT NULL,
     month INTEGER NOT NULL,
     date INTEGER NOT NULL,
-    location VARCHAR(100),
-    status VARCHAR(50) DEFAULT 'pending',
+    location TEXT,
+    status TEXT DEFAULT 'pending',
     transfer_start TIMESTAMP,
     transfer_end TIMESTAMP,
-    transfer_task_id VARCHAR(255),
+    transfer_task_id TEXT,
     processing_start TIMESTAMP,
     processing_end TIMESTAMP,
     slurm_job_id INTEGER,
@@ -364,14 +364,14 @@ echo -e "   ${GREEN}✓${NC} Created processing_queue table"
 PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /dev/null 2>&1
 CREATE TABLE IF NOT EXISTS comments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    meta_id VARCHAR(255) NOT NULL,
+    meta_id TEXT NOT NULL,
     year INTEGER NOT NULL,
     month INTEGER NOT NULL,
     date INTEGER NOT NULL,
     
     -- Core comment information
-    cid VARCHAR(255) NOT NULL,
-    aweme_id VARCHAR(255),
+    cid TEXT NOT NULL,
+    aweme_id TEXT,
     comment_text TEXT,
     create_time BIGINT,
     
@@ -381,7 +381,7 @@ CREATE TABLE IF NOT EXISTS comments (
     reply_comment_total INTEGER DEFAULT 0,
     
     -- Comment metadata
-    comment_language VARCHAR(20),
+    comment_language TEXT,
     status INTEGER,
     stick_position INTEGER,
     is_comment_translatable BOOLEAN DEFAULT FALSE,
@@ -394,20 +394,20 @@ CREATE TABLE IF NOT EXISTS comments (
     author_pin BOOLEAN DEFAULT FALSE,
     
     -- Reply information
-    reply_id VARCHAR(255),
-    reply_to_reply_id VARCHAR(255),
+    reply_id TEXT,
+    reply_to_reply_id TEXT,
     reply_comment TEXT,
     reply_score DECIMAL(5,2),
     show_more_score DECIMAL(5,2),
     
     -- Author information
-    uid VARCHAR(255),
-    sec_uid VARCHAR(255),
-    nickname VARCHAR(255),
-    unique_id VARCHAR(255),
+    uid TEXT,
+    sec_uid TEXT,
+    nickname TEXT,
+    unique_id TEXT,
     
     -- Author verification and profile
-    custom_verify VARCHAR(255),
+    custom_verify TEXT,
     enterprise_verify_reason TEXT,
     
     -- TEXT fields for complex data
@@ -442,7 +442,7 @@ CREATE TABLE IF NOT EXISTS comments (
     
     -- Processing metadata
     collection_timestamp BIGINT,
-    hash_unique_id VARCHAR(255),
+    hash_unique_id TEXT,
     total INTEGER,
     
     -- Timestamps
@@ -465,22 +465,22 @@ echo -e "   ${GREEN}✓${NC} Created comments table"
 PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /dev/null 2>&1
 CREATE TABLE IF NOT EXISTS subtitles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    meta_id VARCHAR(255) NOT NULL,
+    meta_id TEXT NOT NULL,
     year INTEGER NOT NULL,
     month INTEGER NOT NULL,
     date INTEGER NOT NULL,
     
     -- Core subtitle information
     content TEXT,
-    lang VARCHAR(20),
-    type VARCHAR(50),
+    lang TEXT,
+    type TEXT,
     
     -- Subtitle metadata
     rest TEXT,
     
     -- Processing metadata
     collection_timestamp BIGINT,
-    hash_unique_id VARCHAR(255),
+    hash_unique_id TEXT,
     
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -631,7 +631,7 @@ echo -e "   ${GREEN}✓${NC} Created audio_with_metadata view"
 # Store schema version
 PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << EOF > /dev/null 2>&1
 CREATE TABLE IF NOT EXISTS schema_version (
-    version VARCHAR(20) PRIMARY KEY,
+    version TEXT PRIMARY KEY,
     applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 INSERT INTO schema_version (version) VALUES ('$SCHEMA_VERSION')
