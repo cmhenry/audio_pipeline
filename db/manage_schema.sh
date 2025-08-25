@@ -139,9 +139,9 @@ CREATE TABLE IF NOT EXISTS audio_files (
     filename TEXT NOT NULL UNIQUE,
     file_path VARCHAR(500),
     file_size_bytes NUMERIC,
-    month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
-    date INTEGER NOT NULL CHECK (date >= 1 AND date <= 31),
-    year INTEGER NOT NULL CHECK (year >= 2000),
+    month NUMERIC NOT NULL CHECK (month >= 1 AND month <= 12),
+    date NUMERIC NOT NULL CHECK (date >= 1 AND date <= 31),
+    year NUMERIC NOT NULL CHECK (year >= 2000),
     location TEXT,
     classification TEXT,
     classification_probability DECIMAL(3,2) CHECK (classification_probability >= 0 AND classification_probability <= 1),
@@ -164,7 +164,7 @@ CREATE TABLE IF NOT EXISTS transcripts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     audio_file_id UUID NOT NULL UNIQUE REFERENCES audio_files(id) ON DELETE CASCADE,
     transcript_text TEXT NOT NULL,
-    word_count INTEGER,
+    word_count NUMERIC,
     duration_seconds DECIMAL(10,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -179,9 +179,9 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
 
     -- Core metadata (business key)
     meta_id TEXT NOT NULL,
-    year INTEGER NOT NULL,
-    month INTEGER NOT NULL, 
-    date INTEGER NOT NULL,
+    year NUMERIC NOT NULL,
+    month NUMERIC NOT NULL, 
+    date NUMERIC NOT NULL,
     
     -- Other metadata fields
     poi_id TEXT,
@@ -191,7 +191,7 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     collection_timestamp NUMERIC,
 
     -- Content status and settings
-    meta_itemcommentstatus INTEGER,
+    meta_itemcommentstatus NUMERIC,
     meta_diversificationid TEXT,
     meta_secret BOOLEAN DEFAULT FALSE,
     meta_privateitem BOOLEAN DEFAULT FALSE,
@@ -211,10 +211,10 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     author_roomid TEXT,
     author_verified BOOLEAN DEFAULT FALSE,
     author_openfavorite BOOLEAN DEFAULT TRUE,
-    author_commentsetting INTEGER,
-    author_duetsetting INTEGER,
-    author_stitchsetting INTEGER,
-    author_downloadsetting INTEGER,
+    author_commentsetting NUMERIC,
+    author_duetsetting NUMERIC,
+    author_stitchsetting NUMERIC,
+    author_downloadsetting NUMERIC,
     author_createtime NUMERIC,
     
     -- Author statistics
@@ -231,7 +231,7 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     music_title TEXT,
     music_authorname TEXT,
     music_album TEXT,
-    music_duration INTEGER,
+    music_duration NUMERIC,
     music_schedulesearchtime NUMERIC,
     music_collected BOOLEAN DEFAULT FALSE,
 
@@ -243,10 +243,10 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     stats_collectcount NUMERIC DEFAULT 0,
 
     -- Video specifications
-    video_height INTEGER,
-    video_width INTEGER,
-    video_duration INTEGER,
-    video_bitrate INTEGER,
+    video_height NUMERIC,
+    video_width NUMERIC,
+    video_duration NUMERIC,
+    video_bitrate NUMERIC,
     video_ratio TEXT,
     video_encodedtype TEXT,
     video_format TEXT,
@@ -279,7 +279,7 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
     adress_streetaddress TEXT,
 
     -- Status and messages
-    statuscode INTEGER,
+    statuscode NUMERIC,
     statusmsg TEXT,
 
     -- Descriptions and text content
@@ -309,11 +309,11 @@ CREATE TABLE IF NOT EXISTS audio_metadata (
 
     -- Processing metadata
     pol TEXT,
-    hour INTEGER,
+    hour NUMERIC,
     country TEXT,
     raw TEXT,
     meta_textlanguage TEXT,
-    meta_categorytype INTEGER,
+    meta_categorytype NUMERIC,
 
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -335,9 +335,9 @@ echo -e "   ${GREEN}✓${NC} Created audio_metadata table"
 PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /dev/null 2>&1
 CREATE TABLE IF NOT EXISTS processing_queue (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    year INTEGER NOT NULL,
-    month INTEGER NOT NULL,
-    date INTEGER NOT NULL,
+    year NUMERIC NOT NULL,
+    month NUMERIC NOT NULL,
+    date NUMERIC NOT NULL,
     location TEXT,
     status TEXT DEFAULT 'pending',
     transfer_start TIMESTAMP,
@@ -345,7 +345,7 @@ CREATE TABLE IF NOT EXISTS processing_queue (
     transfer_task_id TEXT,
     processing_start TIMESTAMP,
     processing_end TIMESTAMP,
-    slurm_job_id INTEGER,
+    slurm_job_id NUMERIC,
     error_message TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -365,9 +365,9 @@ PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /de
 CREATE TABLE IF NOT EXISTS comments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     meta_id TEXT NOT NULL,
-    year INTEGER NOT NULL,
-    month INTEGER NOT NULL,
-    date INTEGER NOT NULL,
+    year NUMERIC NOT NULL,
+    month NUMERIC NOT NULL,
+    date NUMERIC NOT NULL,
     
     -- Core comment information
     cid TEXT NOT NULL,
@@ -378,12 +378,12 @@ CREATE TABLE IF NOT EXISTS comments (
     -- Comment engagement stats
     digg_count NUMERIC DEFAULT 0,
     reply_count NUMERIC DEFAULT 0,
-    reply_comment_total INTEGER DEFAULT 0,
+    reply_comment_total NUMERIC DEFAULT 0,
     
     -- Comment metadata
     comment_language TEXT,
-    status INTEGER,
-    stick_position INTEGER,
+    status NUMERIC,
+    stick_position NUMERIC,
     is_comment_translatable BOOLEAN DEFAULT FALSE,
     no_show BOOLEAN DEFAULT FALSE,
     
@@ -443,7 +443,7 @@ CREATE TABLE IF NOT EXISTS comments (
     -- Processing metadata
     collection_timestamp NUMERIC,
     hash_unique_id TEXT,
-    total INTEGER,
+    total NUMERIC,
     
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -466,9 +466,9 @@ PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USER -d $DB_NAME << 'EOF' > /de
 CREATE TABLE IF NOT EXISTS subtitles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     meta_id TEXT NOT NULL,
-    year INTEGER NOT NULL,
-    month INTEGER NOT NULL,
-    date INTEGER NOT NULL,
+    year NUMERIC NOT NULL,
+    month NUMERIC NOT NULL,
+    date NUMERIC NOT NULL,
     
     -- Core subtitle information
     content TEXT,
