@@ -484,7 +484,7 @@ CREATE TABLE IF NOT EXISTS subtitles (
     
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     -- Unique
     UNIQUE(meta_id, year, month, date)

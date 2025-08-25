@@ -197,8 +197,7 @@ class HPCTimestampedAudioProcessor:
                     )
                     
                     # Continue with existing processing
-                    combined_comments = self._convert_boolean_columns(combined_comments)
-                    combined_comments = self._sanitize_bigint_values(combined_comments)
+                    combined_comments = self._convert_comment_boolean_columns(combined_comments)
                     
                     # Store comments
                     self._store_comments_batch(combined_comments)
