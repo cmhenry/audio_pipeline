@@ -127,9 +127,9 @@ class HPCTimestampedAudioProcessor:
         #     logger.info(f"Directory contents: {list(self.staging_dir.iterdir())}")
         
         # Collect all parquet files (fix glob patterns - remove regex ^ syntax)
-        if(self.metadata): metadata_files = sorted(self.staging_dir.glob("*_metadata.parquet"))
-        if(self.comments): comments_files = sorted(self.staging_dir.glob("*_comments.parquet"))
-        if(self.subtitles): subtitles_files = sorted(self.staging_dir.glob("*_subtitles.parquet"))
+        if(self.metadata == True): metadata_files = sorted(self.staging_dir.glob("*_metadata.parquet"))
+        if(self.comments == True): comments_files = sorted(self.staging_dir.glob("*_comments.parquet"))
+        if(self.subtitles == True): subtitles_files = sorted(self.staging_dir.glob("*_subtitles.parquet"))
         
         logger.info(f"Found {len(metadata_files)} metadata, {len(comments_files)} comments, "
                    f"{len(subtitles_files)} subtitles files")
