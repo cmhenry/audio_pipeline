@@ -31,6 +31,11 @@ class HPCTimestampedAudioProcessor:
         self.day = 1
         # self.batch_size = args.batch_size
         # self.num_workers = args.num_workers
+
+        # Select which metadata to include
+        self.metadata = args.metadata
+        self.comments = args.comments
+        self.subtitles = args.subtitles
         
         # Initialize connections
         # psycopg2 connection for raw SQL operations
@@ -122,9 +127,9 @@ class HPCTimestampedAudioProcessor:
         #     logger.info(f"Directory contents: {list(self.staging_dir.iterdir())}")
         
         # Collect all parquet files (fix glob patterns - remove regex ^ syntax)
-        metadata_files = sorted(self.staging_dir.glob("*_metadata.parquet"))
-        comments_files = sorted(self.staging_dir.glob("*_comments.parquet"))
-        subtitles_files = sorted(self.staging_dir.glob("*_subtitles.parquet"))
+        if(self.metadata): metadata_files = sorted(self.staging_dir.glob("*_metadata.parquet"))
+        if(self.comments): comments_files = sorted(self.staging_dir.glob("*_comments.parquet"))
+        if(self.subtitles): subtitles_files = sorted(self.staging_dir.glob("*_subtitles.parquet"))
         
         logger.info(f"Found {len(metadata_files)} metadata, {len(comments_files)} comments, "
                    f"{len(subtitles_files)} subtitles files")
@@ -232,6 +237,11 @@ class HPCTimestampedAudioProcessor:
                 if subtitles_dfs:
                     combined_subtitles = pd.concat(subtitles_dfs, ignore_index=True)
                     logger.info(f"Combined subtitles: {len(combined_subtitles)} rows")
+
+                    # Deduplicate within batch before other processing
+                    combined_subtitles = self._deduplicate_batch(
+                        combined_subtitles, ['meta_id', 'year', 'month', 'date'], 'subtitles'
+                    )
 
                     # Debug and sanitize  
                     # self._debug_bigint_ranges(combined_subtitles, "subtitles")
@@ -481,6 +491,9 @@ def main():
     parser.add_argument('--db-host', required=True, help='Database host (also rsync target)')
     parser.add_argument('--db-password', default='audio_password', help='Database password')
     parser.add_argument('--month', help='Month to process')
+    parser.add_argument('--metadata', default=True, help='Include metadata files')
+    parser.add_argument('--comments', default=True, help='Include comment files')
+    parser.add_argument('--subtitles', default=True, help='Include subtitle files')
     # parser.add_argument('--batch-size', type=int, default=100, help='Audio files per batch')
     # parser.add_argument('--num-workers', type=int, default=32, help='Parallel workers')
     
