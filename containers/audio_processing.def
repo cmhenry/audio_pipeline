@@ -63,7 +63,10 @@ From: nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
         soundfile \
         datasets \
         transformers \
-        accelerate
+        accelerate \
+        peft \
+        bitsandbytes \
+        tqdm
 
     # Create application directory
     mkdir -p /opt/audio_pipeline/src
