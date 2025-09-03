@@ -8,8 +8,8 @@
 #SBATCH --gpus=H100:1
 #SBATCH --mem=64G
 #SBATCH --time=12:00:00
-#SBATCH --output=/scratch/cohenr/logs/classify_%j.out
-#SBATCH --error=/scratch/cohenr/logs/classify_%j.err
+#SBATCH --output=/scratch/cohenr/logs/classification/classify_%j.out
+#SBATCH --error=/scratch/cohenr/logs/classification/classify_%j.err
 
 module load singularityce
 
