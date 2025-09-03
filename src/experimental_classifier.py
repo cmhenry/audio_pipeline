@@ -426,10 +426,10 @@ def main():
     )
 
     model = AutoModelForCausalLM.from_pretrained(base_model_name,
-                                                token=os.environ[''],
+                                                token=os.environ['HF_TOKEN'],
                                                 quantization_config=bnb_config,
                                                 device_map="auto")
-    model = PeftModel.from_pretrained(model, adapter_model_name, token=os.environ[''])
+    model = PeftModel.from_pretrained(model, adapter_model_name, token=os.environ['HF_TOKEN'])
     model = model.merge_and_unload()
 
     #model = model.to(device)

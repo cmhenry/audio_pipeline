@@ -71,6 +71,7 @@ echo "Looking for subtitle files in: $INPUT_DIR_BIND"
 
 # Run the classification with GPU support
 singularity run --nv \
+    --env HF_TOKEN='' \
     --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
     --bind ${INPUT_DIR_BIND}:/input_data \
     --bind ${OUTPUT_DIR_BIND}:/output_data \
