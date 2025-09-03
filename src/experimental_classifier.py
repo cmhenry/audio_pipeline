@@ -142,43 +142,47 @@ DEFAULT_POLICY = """# Policy
 
 ## Overview
 
-This policy is designed to determine whether or not content is hate speech.
+This policy is designed to determine whether or not content is abusive speech.
 
 ## Definition of Terms
 
-- Protected Classes: Individuals or groups distinguished by race (e.g. Black, White), ethnicity (e.g. Hispanic, Jewish), nationality (e.g. Canadian, Argentinian), caste (e.g. Brahmins, Kshatriyas, Vaishyas), immigration status (e.g. Immigrants), religion (e.g. Catholics, Jews), disability (e.g. blind people, deaf people), disease status (e.g. people with AIDS), sexual orientation (e.g. gays, bisexuals), transgender status (e.g. trans people, cis people), gender identity (e.g. women, men), gender expression (e.g. masculine, feminine), or sex (e.g. male, female).
-- Derogatory Slur: Any term or phrase used pejoratively or contemptuously towards a member or members of a protected class, including those historically reclaimed but used in a derogatory context.
-- Non-Protected Classes: Categories defined by, political party membership (e.g. Democrats, Tories), political beliefs (e.g. fascists, communists), hobbies (e.g. games, knitters), criminal history (e.g. criminals, convicts), or profession (e.g. doctors, farmers), or weight or body size (e.g. fat people, thin people).
+- Individual Target: Any person or specific group of people who are directly addressed or clearly identifiable as the subject of the content.
+- Public Figure: Individuals who have achieved prominence in society through their actions, positions, or public presence, including politicians, celebrities, business leaders, and social media influencers with substantial followings.
+- Threatening Language: Words or phrases that express intent to cause harm, intimidate, or coerce someone through violence, exposure of private information, or other means of causing distress.
+- Degrading Language: Words or phrases intended to humiliate, belittle, or diminish a person's dignity or self-worth.
+- Private Individual: Any person who is not a public figure and has not voluntarily placed themselves in public discourse on the matter being discussed.
 
 ## Interpretation of Language:
 
-- In interpreting this policy, ambiguous phrases should be understood based on their most reasonable contextual meaning. For instance, criticisms directed at a religious system (e.g. "Buddhism is a flawed ideology") should NOT be construed as attacks against the adherents of that faith.
+- In interpreting this policy, context and tone should be considered. Harsh criticism of ideas, actions, or public positions should be distinguished from personal attacks on individuals. The severity and directness of the language should be weighed against the public nature of the discourse.
 
 ## Definition of Labels
 
-### (HS): Hate Speech
+### (AS): Abusive Speech
 
 #### Includes
 
-- Direct and Indirect Violence Advocacy: Any form of expression that celebrates, justifies, incites, or threatens physical or psychological harm against individuals or groups identified by their membership in a protected class.
-- Dehumanization and Vilification: Content suggesting that individuals or groups, explicitly identified by their membership in a specific protected class, are subhuman, inherently lesser beings, or using animalistic descriptions in a way that promotes disdain or hate.
-- Derogatory and Dehumanizing Language: Use of slurs, epithets, or any derogatory language aimed at belittling, humiliating, or inciting hatred against individuals or groups explicitly identified by their membership in a specific protected class.
-- Explicit and Implicit Discrimination Advocacy: Promoting exclusion, segregation, or denial of rights against  individuals or groups explicitly identified by their membership in a specific protected class.
-- Collective Attribution of Negative Actions: Assigning collective blame or advocating collective punishment based on the actions or perceived characteristics of individuals or groups identified by their membership in a protected class.
-- Inferiority and Superiority Claims: Statements that categorically assign inferiority or superiority, moral or intellectual, to individuals or groups identified by their membership in a protected class.
-- Denial or Distortion of Historical Atrocities: Denying, grossly trivializing, or distorting documented atrocities against groups identified by their membership in a protected class, undermining their significance or the suffering of their members.
-- Conspiracy Theories: Propagating unfounded allegations that individuals or groups, identified by their membership in a protected class, are responsible for serious harms or controlling significant institutions to the detriment of society.
+- Direct Threats and Intimidation: Any expression that threatens physical harm, death, sexual violence, or other forms of violence against specific individuals or clearly defined groups, regardless of whether the threat is credible.
+- Severe Personal Attacks: Content containing cruel, degrading, or dehumanizing language directed at specific individuals, including but not limited to attacks on appearance, intelligence, character, or personal circumstances.
+- Harassment and Bullying: Persistent, targeted communication intended to intimidate, humiliate, or cause emotional distress to individuals, including coordinated harassment campaigns or pile-ons.
+- Doxxing and Privacy Violations: Sharing or threatening to share private information about individuals with intent to cause harm, enable harassment, or violate privacy.
+- Sexual Harassment: Unwanted sexual advances, explicit sexual content directed at individuals without consent, or sexually degrading language aimed at specific people.
+- Malicious Impersonation: Creating content that falsely represents someone else with intent to damage their reputation or cause them harm.
+- Targeted Profanity and Vulgarity: Use of extreme profanity, obscenities, or vulgar language when directed aggressively at specific individuals.
+- Encouraging Self-Harm: Content that encourages, instructs, or goads individuals to harm themselves or end their lives.
+- Coordinated Abuse: Content that explicitly calls for others to harass, abuse, or target specific individuals.
 
 #### Excludes
 
-- Attacks on Non-Protected Classes: Content that attacks or criticizes individuals or groups identified by their membership in a Non-Protected Class, EVEN if that attack is violent, threatening, or otherwise hateful (e.g. "Criminals should all be rounded up and shot!").
-- Criticism of Beliefs and Institutions: Constructive critique or discussion of political ideologies, religious doctrines, or institutions without resorting to hate speech or targeting individuals or groups identified by their membership in a protected class.
-- Attacking Leaders: Content that critiques, mocks, or insults the leaders of religions, leaders of religious institutions, or religious prophets or deities, BUT does not contain the singular or plural noun for followers of that religion.
-- Condemning Violent Extremism: Content that condemns, mocks, insults, dehumanizes, or calls for violence against terrorist organizations and violent hate groups, or their members.
-- Neutrally Reporting Historical Events: Neutrally and descriptively reporting or discussion of factual events in the past that could be construed as negative about individuals or groups identified by their membership in a protected class.
-- Pushing Back on Hateful Language: Content where the writer pushes back on, condemns, questions, criticizes, or mocks a different person's hateful language or ideas.
-- Disease Discussion: Content in which the author discusses diseases without direct references to people with the disease.
-- Quoting Hateful Language: Content in which the author quotes someone else's hateful language or ideas while discussing, explaining, or neutrally factually presenting those ideas.
+- Criticism of Ideas and Actions: Strong criticism, even harsh criticism, of ideas, beliefs, actions, decisions, or public positions, provided it does not include personal attacks or threats.
+- Public Figure Criticism: Robust criticism, satire, or mockery of public figures regarding their public actions, statements, or positions, unless it includes threats of violence or crosses into severe personal attacks unrelated to their public role.
+- Group Criticism Without Individual Targeting: Criticism of organizations, institutions, corporations, or abstract groups where no specific individuals are targeted for abuse.
+- Self-Defense and Counter-Speech: Content where individuals defend themselves against attacks or respond proportionally to abuse directed at them.
+- Factual Reporting: Neutral reporting of events, crimes, or misconduct, even when such reporting may be unflattering to the subjects.
+- Academic or Educational Discussion: Content that discusses abusive behavior in an educational, analytical, or documentary context without endorsing or encouraging such behavior.
+- Consensual Exchanges: Apparently harsh exchanges between individuals where context suggests mutual consent or participation in debate, roasting, or similar activities.
+- Profanity Not Directed at Individuals: Use of profanity for emphasis, frustration with situations, or general expression that is not directed at specific people.
+- Fiction and Creative Content: Abusive language that appears within clearly marked fictional content, quotes from literary works, or artistic expression where real individuals are not targeted.
 """
 
 DEFAULT_CONTENT = "Put your content sample here."
