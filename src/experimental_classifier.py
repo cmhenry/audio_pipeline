@@ -6,9 +6,36 @@ import argparse
 import pandas as pd
 import torch
 import torch.nn.functional as F
+from pathlib import Path
 from peft import PeftConfig, PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from tqdm import tqdm
+
+# Default policy file path (relative to this script)
+DEFAULT_POLICY_FILE = Path(__file__).parent / "tiktok_policy.txt"
+
+
+def load_prompt_template(policy_file=None):
+    """Load the prompt template from a file.
+
+    Args:
+        policy_file: Path to the policy file. If None, uses DEFAULT_POLICY_FILE.
+
+    Returns:
+        The prompt template string with {content_text} placeholder.
+
+    Raises:
+        FileNotFoundError: If the policy file does not exist.
+    """
+    if policy_file is None:
+        policy_file = DEFAULT_POLICY_FILE
+
+    policy_path = Path(policy_file)
+    if not policy_path.exists():
+        raise FileNotFoundError(f"Policy file not found: {policy_path}")
+
+    with open(policy_path, 'r') as f:
+        return f.read()
 
 def find_date_based_parquet_files(root_dir):
     """Find parquet files with date-based naming convention.
@@ -116,90 +143,19 @@ def load_and_combine_parquets(parquet_files):
 
 
 
-PROMPT = """
-INSTRUCTIONS
-============
-Examine the given POLICY and determine if the given CONTENT meets the criteria for ANY of the LABELS. Answer "1" if yes, and "0" if no.
-
-POLICY
-======
-
-{policy}
-
-
-CONTENT
-=======
-
-{content}
-
-
-ANSWER
-======
-
-"""
-
-DEFAULT_POLICY = """# Policy
-
-## Overview
-
-This policy is designed to determine whether or not content is abusive speech.
-
-## Definition of Terms
-
-- Individual Target: Any person or specific group of people who are directly addressed or clearly identifiable as the subject of the content.
-- Public Figure: Individuals who have achieved prominence in society through their actions, positions, or public presence, including politicians, celebrities, business leaders, and social media influencers with substantial followings.
-- Threatening Language: Words or phrases that express intent to cause harm, intimidate, or coerce someone through violence, exposure of private information, or other means of causing distress.
-- Degrading Language: Words or phrases intended to humiliate, belittle, or diminish a person's dignity or self-worth.
-- Private Individual: Any person who is not a public figure and has not voluntarily placed themselves in public discourse on the matter being discussed.
-
-## Interpretation of Language:
-
-- In interpreting this policy, context and tone should be considered. Harsh criticism of ideas, actions, or public positions should be distinguished from personal attacks on individuals. The severity and directness of the language should be weighed against the public nature of the discourse.
-
-## Definition of Labels
-
-### (AS): Abusive Speech
-
-#### Includes
-
-- Direct Threats and Intimidation: Any expression that threatens physical harm, death, sexual violence, or other forms of violence against specific individuals or clearly defined groups, regardless of whether the threat is credible.
-- Severe Personal Attacks: Content containing cruel, degrading, or dehumanizing language directed at specific individuals, including but not limited to attacks on appearance, intelligence, character, or personal circumstances.
-- Harassment and Bullying: Persistent, targeted communication intended to intimidate, humiliate, or cause emotional distress to individuals, including coordinated harassment campaigns or pile-ons.
-- Doxxing and Privacy Violations: Sharing or threatening to share private information about individuals with intent to cause harm, enable harassment, or violate privacy.
-- Sexual Harassment: Unwanted sexual advances, explicit sexual content directed at individuals without consent, or sexually degrading language aimed at specific people.
-- Malicious Impersonation: Creating content that falsely represents someone else with intent to damage their reputation or cause them harm.
-- Targeted Profanity and Vulgarity: Use of extreme profanity, obscenities, or vulgar language when directed aggressively at specific individuals.
-- Encouraging Self-Harm: Content that encourages, instructs, or goads individuals to harm themselves or end their lives.
-- Coordinated Abuse: Content that explicitly calls for others to harass, abuse, or target specific individuals.
-
-#### Excludes
-
-- Criticism of Ideas and Actions: Strong criticism, even harsh criticism, of ideas, beliefs, actions, decisions, or public positions, provided it does not include personal attacks or threats.
-- Public Figure Criticism: Robust criticism, satire, or mockery of public figures regarding their public actions, statements, or positions, unless it includes threats of violence or crosses into severe personal attacks unrelated to their public role.
-- Group Criticism Without Individual Targeting: Criticism of organizations, institutions, corporations, or abstract groups where no specific individuals are targeted for abuse.
-- Self-Defense and Counter-Speech: Content where individuals defend themselves against attacks or respond proportionally to abuse directed at them.
-- Factual Reporting: Neutral reporting of events, crimes, or misconduct, even when such reporting may be unflattering to the subjects.
-- Academic or Educational Discussion: Content that discusses abusive behavior in an educational, analytical, or documentary context without endorsing or encouraging such behavior.
-- Consensual Exchanges: Apparently harsh exchanges between individuals where context suggests mutual consent or participation in debate, roasting, or similar activities.
-- Profanity Not Directed at Individuals: Use of profanity for emphasis, frustration with situations, or general expression that is not directed at specific people.
-- Fiction and Creative Content: Abusive language that appears within clearly marked fictional content, quotes from literary works, or artistic expression where real individuals are not targeted.
-"""
-
-DEFAULT_CONTENT = "Put your content sample here."
-
-def process_subtitles_directory(input_dir, output_file=None, policy=None, tokenizer=None, model=None, device=None, batch_size=16):
+def process_subtitles_directory(input_dir, output_file=None, prompt_template=None, tokenizer=None, model=None, device=None, batch_size=16):
     """Process all subtitle parquet files in a directory and run classification.
-    
+
     Args:
         input_dir: Directory containing subtitle parquet files
         output_file: Path to save results CSV (optional)
-        policy: Classification policy to use (defaults to DEFAULT_POLICY)
-    
+        prompt_template: Prompt template to use for classification
+
     Returns:
         DataFrame with classification results
     """
-    if policy is None:
-        policy = DEFAULT_POLICY
+    if prompt_template is None:
+        prompt_template = load_prompt_template()
     
     # Find all subtitle parquet files
     print(f"Searching for subtitle files in: {input_dir}")
@@ -252,7 +208,7 @@ def process_subtitles_directory(input_dir, output_file=None, policy=None, tokeni
     if valid_contents:
         try:
             # Process all contents in batches
-            predictions = predict_batch(valid_contents, policy, tokenizer, model, device, batch_size)
+            predictions = predict_batch(valid_contents, prompt_template, tokenizer, model, device, batch_size)
             
             # Combine predictions with row data
             for (idx, row), prediction in tqdm(
@@ -282,7 +238,7 @@ def process_subtitles_directory(input_dir, output_file=None, policy=None, tokeni
             for idx, row in tqdm(valid_rows, desc="Fallback processing"):
                 try:
                     content = row['content']
-                    prediction = predict(content, policy, tokenizer, model, device)
+                    prediction = predict(content, prompt_template, tokenizer, model, device)
                     
                     result = {
                         'index': idx,
@@ -318,17 +274,17 @@ def process_subtitles_directory(input_dir, output_file=None, policy=None, tokeni
     return results_df
 
 # Function to make predictions in batches for efficiency
-def predict_batch(contents, policy, tokenizer, model, device, batch_size=16):
+def predict_batch(contents, prompt_template, tokenizer, model, device, batch_size=16):
     """Process multiple texts in batches for improved GPU utilization.
-    
+
     Args:
         contents: List of content strings to classify
-        policy: Policy text to use for classification
+        prompt_template: Prompt template with {content_text} placeholder
         tokenizer: Tokenizer instance
-        model: Model instance 
+        model: Model instance
         device: Device (cuda/cpu)
         batch_size: Number of texts to process in each batch
-    
+
     Returns:
         List of prediction dictionaries
     """
@@ -343,7 +299,7 @@ def predict_batch(contents, policy, tokenizer, model, device, batch_size=16):
         batch_contents = contents[i:i+batch_size]
         
         # Create input texts for the batch
-        batch_input_texts = [PROMPT.format(policy=policy, content=content) for content in batch_contents]
+        batch_input_texts = [prompt_template.format(content_text=content) for content in batch_contents]
         
         # Tokenize batch with padding
         batch_inputs = tokenizer(
@@ -390,26 +346,25 @@ def predict_batch(contents, policy, tokenizer, model, device, batch_size=16):
     return results
 
 # Legacy single prediction function for backwards compatibility
-def predict(content, policy, tokenizer, model, device):
+def predict(content, prompt_template, tokenizer, model, device):
     """Single text prediction - uses batch function with batch_size=1."""
-    results = predict_batch([content], policy, tokenizer, model, device, batch_size=1)
+    results = predict_batch([content], prompt_template, tokenizer, model, device, batch_size=1)
     return results[0] if results else None
 
 def main():
     parser = argparse.ArgumentParser(description="Classify TikTok subtitle content using experimental classifier")
     parser.add_argument("--input_dir", help="Directory containing subtitle parquet files")
     parser.add_argument("-o", "--output", help="Output parquet file for results")
-    parser.add_argument("--policy", help="Path to custom policy file (defaults to built-in policy)")
+    parser.add_argument("--policy", help=f"Path to custom policy file (defaults to {DEFAULT_POLICY_FILE})")
     parser.add_argument("--batch-size", type=int, default=16, help="Batch size for GPU processing (default: 16)")
-    
+
     args = parser.parse_args()
-    
-    # Load custom policy if specified
-    policy = DEFAULT_POLICY
-    if args.policy and os.path.exists(args.policy):
-        with open(args.policy, 'r') as f:
-            policy = f.read()
-        print(f"Loaded custom policy from: {args.policy}")
+
+    # Load prompt template from policy file
+    policy_file = args.policy if args.policy else None
+    prompt_template = load_prompt_template(policy_file)
+    policy_source = args.policy if args.policy else DEFAULT_POLICY_FILE
+    print(f"Loaded prompt template from: {policy_source}")
     
     # Set default output filename if not specified
     output_file = args.output
@@ -442,7 +397,7 @@ def main():
 
     # Process the directory with batch processing
     results_df = process_subtitles_directory(
-        args.input_dir, output_file, policy, tokenizer, model, device, args.batch_size
+        args.input_dir, output_file, prompt_template, tokenizer, model, device, args.batch_size
     )
     
     if not results_df.empty:

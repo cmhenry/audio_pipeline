@@ -8,18 +8,18 @@
 #SBATCH --gpus=H100:1
 #SBATCH --mem=64G
 #SBATCH --time=12:00:00
-#SBATCH --output=/scratch/cohenr/logs/classification/classify_%j.out
-#SBATCH --error=/scratch/cohenr/logs/classification/classify_%j.err
+#SBATCH --output=/scratch/cohenr/logs/classification/classify_subtitles_%j.out
+#SBATCH --error=/scratch/cohenr/error/classification/classify_subtitles_%j.err
 
-module load singularityce
+module load apptainer
 
 # classify_subtitles_job.sh - Subtitle classification using experimental classifier
 # Usage: sbatch --export=INPUT_DIR=/path/to/subtitles,OUTPUT_FILE=/path/to/results.parquet classify_subtitles_job.sh
 
 # Container paths
-CONTAINER_DIR="/data/cohenr/audio_pipeline/containers"
+CONTAINER_DIR="/home/cohenr/data/audio_pipeline/containers"
 AUDIO_PROCESSING_SIF="${CONTAINER_DIR}/audio_processing.sif"
-SCRIPT_DIR="/data/cohenr/audio_pipeline/src"
+SCRIPT_DIR="/home/cohenr/data/audio_pipeline/src"
 
 # Check required environment variables
 if [[ -z "$INPUT_DIR" ]]; then
@@ -34,11 +34,11 @@ if [[ -z "$OUTPUT_FILE" ]]; then
 fi
 
 # Set up Hugging Face token (required for gemma-2-9b model)
-# if [[ -z "" ]]; then
-#     echo "Error: Hugging Face token not set in environment"
-#     echo "Please set environment variable"
-#     exit 1
-# fi
+if [[ -z "$HF_TOKEN" ]]; then
+    echo "Error: HF_TOKEN environment variable not set"
+    echo "Please set HF_TOKEN environment variable with your Hugging Face token"
+    exit 1
+fi
 
 # Display job information
 echo "========================================="
@@ -70,7 +70,7 @@ echo "Starting subtitle classification..."
 echo "Looking for subtitle files in: $INPUT_DIR_BIND"
 
 # Run the classification with GPU support
-singularity run --nv \
+apptainer run --nv \
     --env HF_TOKEN='' \
     --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
     --bind ${INPUT_DIR_BIND}:/input_data \
