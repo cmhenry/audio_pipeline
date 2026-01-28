@@ -15,6 +15,13 @@ module load apptainer
 
 # classify_subtitles_job.sh - Subtitle classification using experimental classifier
 # Usage: sbatch --export=INPUT_DIR=/path/to/subtitles,OUTPUT_FILE=/path/to/results.parquet classify_subtitles_job.sh
+#
+# Optional environment variables:
+#   CHECKPOINT_INTERVAL - Save checkpoint every N records (default: 1000)
+#   RESUME=true         - Resume from existing checkpoint if available
+#
+# Example with checkpointing:
+#   sbatch --export=INPUT_DIR=/path/to/data,OUTPUT_FILE=/path/to/results.parquet,RESUME=true classify_subtitles_job.sh
 
 # Container paths
 CONTAINER_DIR="/home/cohenr/data/audio_pipeline/containers"
@@ -63,6 +70,16 @@ OUTPUT_DIR_BIND=$(realpath "$OUTPUT_DIR")
 echo "Starting subtitle classification..."
 echo "Looking for subtitle files in: $INPUT_DIR_BIND"
 
+# Checkpointing settings (can be overridden via environment variables)
+CHECKPOINT_INTERVAL=${CHECKPOINT_INTERVAL:-1000}
+RESUME_FLAG=""
+if [[ -n "$RESUME" && "$RESUME" == "true" ]]; then
+    RESUME_FLAG="--resume"
+    echo "Resume mode enabled - will continue from checkpoint if available"
+fi
+
+echo "Checkpoint interval: $CHECKPOINT_INTERVAL records"
+
 # Run the classification with GPU support
 apptainer run --nv \
     --env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
@@ -73,7 +90,9 @@ apptainer run --nv \
     ${AUDIO_PROCESSING_SIF} \
     /opt/audio_pipeline/src/experimental_classifier.py \
     --input_dir "/input_data" \
-    --output "/output_data/$(basename "$OUTPUT_FILE")"
+    --output "/output_data/$(basename "$OUTPUT_FILE")" \
+    --checkpoint-interval ${CHECKPOINT_INTERVAL} \
+    ${RESUME_FLAG}
 
 # Check exit status
 EXIT_CODE=$?
