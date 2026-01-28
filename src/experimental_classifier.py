@@ -3,6 +3,7 @@ import os
 import gc
 import glob
 import re
+import json
 import argparse
 import pandas as pd
 import torch
@@ -108,9 +109,39 @@ def extract_date_from_filename(filename):
     else:
         return None, None, None
 
+def get_checkpoint_path(output_file):
+    """Get checkpoint file path based on output file."""
+    return Path(output_file).with_suffix('.checkpoint.parquet')
+
+
+def save_checkpoint(results, checkpoint_path, processed_indices):
+    """Save current results and processed indices to checkpoint."""
+    df = pd.DataFrame(results)
+    df.to_parquet(checkpoint_path, index=False)
+    # Also save processed indices to a companion file
+    indices_path = checkpoint_path.with_suffix('.indices.json')
+    with open(indices_path, 'w') as f:
+        json.dump(list(processed_indices), f)
+
+
+def load_checkpoint(checkpoint_path):
+    """Load results and processed indices from checkpoint."""
+    if not checkpoint_path.exists():
+        return [], set()
+    df = pd.read_parquet(checkpoint_path)
+    results = df.to_dict('records')
+    indices_path = checkpoint_path.with_suffix('.indices.json')
+    if indices_path.exists():
+        with open(indices_path, 'r') as f:
+            processed_indices = set(json.load(f))
+    else:
+        processed_indices = set()
+    return results, processed_indices
+
+
 def load_and_combine_parquets(parquet_files):
     """Load and combine multiple parquet files into a single dataframe.
-    
+
     Also extracts date information from filenames and adds year, month, day columns.
     """
     dfs = []
@@ -144,13 +175,19 @@ def load_and_combine_parquets(parquet_files):
 
 
 
-def process_subtitles_directory(input_dir, output_file=None, prompt_template=None, tokenizer=None, model=None, device=None, batch_size=16):
+def process_subtitles_directory(input_dir, output_file=None, prompt_template=None, tokenizer=None, model=None, device=None, batch_size=16, checkpoint_interval=1000, resume=False):
     """Process all subtitle parquet files in a directory and run classification.
 
     Args:
         input_dir: Directory containing subtitle parquet files
         output_file: Path to save results CSV (optional)
         prompt_template: Prompt template to use for classification
+        tokenizer: Tokenizer instance
+        model: Model instance
+        device: Device (cuda/cpu)
+        batch_size: Number of texts to process in each batch
+        checkpoint_interval: Save checkpoint every N records (default: 1000)
+        resume: Resume from existing checkpoint if available
 
     Returns:
         DataFrame with classification results
@@ -190,57 +227,95 @@ def process_subtitles_directory(input_dir, output_file=None, prompt_template=Non
     if filtered_count < original_count:
         print(f"Filtered out {original_count - filtered_count} rows with missing content")
     
+    # Setup checkpointing
+    checkpoint_path = get_checkpoint_path(output_file) if output_file else None
+    processed_indices = set()
+    results = []
+
+    if resume and checkpoint_path and checkpoint_path.exists():
+        results, processed_indices = load_checkpoint(checkpoint_path)
+        print(f"Resumed from checkpoint: {len(results)} records already processed")
+
     # Run classification in batches for efficiency
     print(f"Running classification with batch size {batch_size}...")
-    results = []
-    
+
     # Prepare data for batch processing
     valid_rows = []
     valid_contents = []
-    
+
     for idx, row in combined_df.iterrows():
         content = row['content']
         if isinstance(content, str) and content.strip():
             valid_rows.append((idx, row))
             valid_contents.append(content)
-    
-    print(f"Processing {len(valid_contents)} valid subtitle entries...")
-    
-    if valid_contents:
+
+    # Filter out already-processed items when resuming
+    if processed_indices:
+        items_to_process = [(idx, row, content) for (idx, row), content
+                           in zip(valid_rows, valid_contents)
+                           if idx not in processed_indices]
+        print(f"Skipping {len(valid_rows) - len(items_to_process)} already processed items")
+    else:
+        items_to_process = [(idx, row, content) for (idx, row), content
+                           in zip(valid_rows, valid_contents)]
+
+    print(f"Processing {len(items_to_process)} valid subtitle entries...")
+
+    if items_to_process:
+        # Extract contents for batch processing
+        batch_indices = [item[0] for item in items_to_process]
+        batch_rows = [item[1] for item in items_to_process]
+        batch_contents = [item[2] for item in items_to_process]
+
         try:
-            # Process all contents in batches
-            predictions = predict_batch(valid_contents, prompt_template, tokenizer, model, device, batch_size)
-            
-            # Combine predictions with row data
-            for (idx, row), prediction in tqdm(
-                zip(valid_rows, predictions), 
-                total=len(valid_rows), 
-                desc="Processing results"
-            ):
-                result = {
-                    'index': idx,
-                    'year': row.get('year'),
-                    'month': row.get('month'),
-                    'day': row.get('day'),
-                    'source_filename': row.get('source_filename'),
-                    'content': row['content'],
-                    'decoded_token': prediction['decoded_token'],
-                    'classification': prediction['classification'],
-                    'prob_0': prediction['prob_0'],
-                    'prob_1': prediction['prob_1']
-                }
-                results.append(result)
-                
+            # Process in batches with checkpointing
+            for i in tqdm(range(0, len(batch_contents), batch_size), desc="Processing batches"):
+                batch_slice_contents = batch_contents[i:i+batch_size]
+                batch_slice_indices = batch_indices[i:i+batch_size]
+                batch_slice_rows = batch_rows[i:i+batch_size]
+
+                # Process this batch
+                predictions = predict_batch(batch_slice_contents, prompt_template, tokenizer, model, device, batch_size)
+
+                # Combine predictions with row data
+                for idx, row, prediction in zip(batch_slice_indices, batch_slice_rows, predictions):
+                    result = {
+                        'index': idx,
+                        'year': row.get('year'),
+                        'month': row.get('month'),
+                        'day': row.get('day'),
+                        'source_filename': row.get('source_filename'),
+                        'content': row['content'],
+                        'decoded_token': prediction['decoded_token'],
+                        'classification': prediction['classification'],
+                        'prob_0': prediction['prob_0'],
+                        'prob_1': prediction['prob_1']
+                    }
+                    results.append(result)
+                    processed_indices.add(idx)
+
+                # Save checkpoint periodically
+                if checkpoint_path and len(results) % checkpoint_interval < batch_size:
+                    save_checkpoint(results, checkpoint_path, processed_indices)
+                    print(f"Checkpoint saved: {len(results)} records")
+
         except Exception as e:
             print(f"Error during batch processing: {e}")
+            # Save checkpoint before falling back
+            if checkpoint_path and results:
+                save_checkpoint(results, checkpoint_path, processed_indices)
+                print(f"Checkpoint saved before fallback: {len(results)} records")
             print("Falling back to individual processing...")
-            
+
+            # Get remaining items to process
+            remaining_items = [(idx, row, content) for idx, row, content in items_to_process
+                              if idx not in processed_indices]
+
             # Fallback to individual processing if batch fails
-            for idx, row in tqdm(valid_rows, desc="Fallback processing"):
+            for idx, row, content in tqdm(remaining_items, desc="Fallback processing"):
                 try:
-                    content = row['content']
                     prediction = predict(content, prompt_template, tokenizer, model, device)
-                    
+
                     result = {
                         'index': idx,
                         'year': row.get('year'),
@@ -254,24 +329,39 @@ def process_subtitles_directory(input_dir, output_file=None, prompt_template=Non
                         'prob_1': prediction['prob_1']
                     }
                     results.append(result)
+                    processed_indices.add(idx)
+
+                    # Save checkpoint periodically in fallback mode too
+                    if checkpoint_path and len(results) % checkpoint_interval < 1:
+                        save_checkpoint(results, checkpoint_path, processed_indices)
+                        print(f"Checkpoint saved: {len(results)} records")
+
                 except Exception as row_error:
                     print(f"Error processing row {idx}: {row_error}")
                     continue
-    
+
     # Convert results to DataFrame
     results_df = pd.DataFrame(results)
-    
+
     if not results_df.empty:
         print(f"Classification complete! Processed {len(results_df)} items")
         print(f"Classification summary:")
         print(f"  - Class 0 (no labels apply): {len(results_df[results_df['classification'] == 0])} ({len(results_df[results_df['classification'] == 0])/len(results_df)*100:.1f}%)")
         print(f"  - Class 1 (labels apply): {len(results_df[results_df['classification'] == 1])} ({len(results_df[results_df['classification'] == 1])/len(results_df)*100:.1f}%)")
-        
+
         # Save results if output file specified
         if output_file:
             results_df.to_parquet(output_file, index=False)
             print(f"Results saved to: {output_file}")
-    
+
+    # Clean up checkpoint files after successful completion
+    if checkpoint_path and checkpoint_path.exists():
+        checkpoint_path.unlink()
+        indices_path = checkpoint_path.with_suffix('.indices.json')
+        if indices_path.exists():
+            indices_path.unlink()
+        print("Checkpoint files cleaned up after successful completion")
+
     return results_df
 
 # Function to make predictions in batches for efficiency
@@ -363,6 +453,10 @@ def main():
     parser.add_argument("-o", "--output", help="Output parquet file for results")
     parser.add_argument("--policy", help=f"Path to custom policy file (defaults to {DEFAULT_POLICY_FILE})")
     parser.add_argument("--batch-size", type=int, default=4, help="Batch size for GPU processing (default: 4)")
+    parser.add_argument("--checkpoint-interval", type=int, default=1000,
+                        help="Save checkpoint every N records (default: 1000)")
+    parser.add_argument("--resume", action="store_true",
+                        help="Resume from existing checkpoint if available")
 
     args = parser.parse_args()
 
@@ -402,9 +496,10 @@ def main():
 
     tokenizer = AutoTokenizer.from_pretrained(base_model_path, local_files_only=True)
 
-    # Process the directory with batch processing
+    # Process the directory with batch processing and checkpointing
     results_df = process_subtitles_directory(
-        args.input_dir, output_file, prompt_template, tokenizer, model, device, args.batch_size
+        args.input_dir, output_file, prompt_template, tokenizer, model, device,
+        args.batch_size, args.checkpoint_interval, args.resume
     )
     
     if not results_df.empty:
