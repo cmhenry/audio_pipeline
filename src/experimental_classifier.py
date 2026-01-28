@@ -377,23 +377,24 @@ def main():
     # Classification starts here
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    base_model_name = "google/gemma-2-9b"
-    adapter_model_name = "zentropi-ai/cope-a-9b"
+    # Local model paths (mounted in container at /models)
+    base_model_path = "/models/gemma-2-9b"
+    adapter_model_path = "/models/cope-a-adapter"
 
     bnb_config = BitsAndBytesConfig(
         load_in_8bit=True,
     )
 
-    model = AutoModelForCausalLM.from_pretrained(base_model_name,
-                                                token=os.environ['HF_TOKEN'],
+    print(f"Loading base model from: {base_model_path}")
+    model = AutoModelForCausalLM.from_pretrained(base_model_path,
                                                 quantization_config=bnb_config,
-                                                device_map="auto")
-    model = PeftModel.from_pretrained(model, adapter_model_name, token=os.environ['HF_TOKEN'])
+                                                device_map="auto",
+                                                local_files_only=True)
+    print(f"Loading adapter from: {adapter_model_path}")
+    model = PeftModel.from_pretrained(model, adapter_model_path, local_files_only=True)
     model = model.merge_and_unload()
 
-    #model = model.to(device)
-
-    tokenizer = AutoTokenizer.from_pretrained(base_model_name)
+    tokenizer = AutoTokenizer.from_pretrained(base_model_path, local_files_only=True)
 
     # Process the directory with batch processing
     results_df = process_subtitles_directory(

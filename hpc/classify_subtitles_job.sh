@@ -20,6 +20,7 @@ module load apptainer
 CONTAINER_DIR="/home/cohenr/data/audio_pipeline/containers"
 AUDIO_PROCESSING_SIF="${CONTAINER_DIR}/audio_processing.sif"
 SCRIPT_DIR="/home/cohenr/data/audio_pipeline/src"
+MODELS_DIR="/home/cohenr/data/models"
 
 # Check required environment variables
 if [[ -z "$INPUT_DIR" ]]; then
@@ -31,13 +32,6 @@ fi
 if [[ -z "$OUTPUT_FILE" ]]; then
     echo "Warning: OUTPUT_FILE not specified, using default filename"
     OUTPUT_FILE="classification_results_${SLURM_JOB_ID}.parquet"
-fi
-
-# Set up Hugging Face token (required for gemma-2-9b model)
-if [[ -z "$HF_TOKEN" ]]; then
-    echo "Error: HF_TOKEN environment variable not set"
-    echo "Please set HF_TOKEN environment variable with your Hugging Face token"
-    exit 1
 fi
 
 # Display job information
@@ -71,7 +65,7 @@ echo "Looking for subtitle files in: $INPUT_DIR_BIND"
 
 # Run the classification with GPU support
 apptainer run --nv \
-    --env HF_TOKEN='' \
+    --bind ${MODELS_DIR}:/models \
     --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
     --bind ${INPUT_DIR_BIND}:/input_data \
     --bind ${OUTPUT_DIR_BIND}:/output_data \
