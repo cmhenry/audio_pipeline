@@ -1,5 +1,6 @@
 
 import os
+import gc
 import glob
 import re
 import argparse
@@ -342,7 +343,12 @@ def predict_batch(contents, prompt_template, tokenizer, model, device, batch_siz
                     'prob_1': prob_1
                 }
                 results.append(result)
-    
+
+        # Clear GPU cache after each batch to prevent memory fragmentation
+        del batch_inputs, outputs, last_token_logits, probabilities, predicted_token_ids
+        torch.cuda.empty_cache()
+        gc.collect()
+
     return results
 
 # Legacy single prediction function for backwards compatibility
@@ -356,7 +362,7 @@ def main():
     parser.add_argument("--input_dir", help="Directory containing subtitle parquet files")
     parser.add_argument("-o", "--output", help="Output parquet file for results")
     parser.add_argument("--policy", help=f"Path to custom policy file (defaults to {DEFAULT_POLICY_FILE})")
-    parser.add_argument("--batch-size", type=int, default=16, help="Batch size for GPU processing (default: 16)")
+    parser.add_argument("--batch-size", type=int, default=4, help="Batch size for GPU processing (default: 4)")
 
     args = parser.parse_args()
 

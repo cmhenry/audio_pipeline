@@ -65,6 +65,7 @@ echo "Looking for subtitle files in: $INPUT_DIR_BIND"
 
 # Run the classification with GPU support
 apptainer run --nv \
+    --env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
     --bind ${MODELS_DIR}:/models \
     --bind ${SCRIPT_DIR}:/opt/audio_pipeline/src \
     --bind ${INPUT_DIR_BIND}:/input_data \
